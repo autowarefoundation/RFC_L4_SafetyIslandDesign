@@ -7,7 +7,7 @@ This file and its diagram add to the design document; they do not modify it.
 stack, wired by topic. This diagram is **that picture with only the changed parts opened up**, drawn in
 the same visual language, so that the change can be read off rather than reconstructed.
 
-It is **phase 4** of the five-phase series in this folder ([L4SafetyIsland-Layers.md](L4SafetyIsland-Layers.md)): phase 3 draws both ECUs with one box per
+It is **phase 4** of the five-phase series in [L4SafetyIsland-Layers.md](L4SafetyIsland-Layers.md): phase 3 draws both ECUs with one box per
 stack, phase 5 draws the whole island node by node, and this one sits between them — node level for
 what the island changes, phase-3 level for everything it leaves alone.
 
@@ -201,7 +201,7 @@ Worth stating, because a reader comparing the two diagrams side by side will not
      detail as phase 3.
    - **On the island**, node level for the nodes **migrated from the HPC** (the I-nodes). The island's
      own nineteen new nodes sit inside five blocks — sensing, localization, perception, planning,
-     system — again at phase-3 level. `L4SafetyIsland-Layer5-IslandNodes` opens them completely as phase 5.
+     system — again at phase-3 level. [L4SafetyIsland-Layers.md](L4SafetyIsland-Layers.md) opens them completely as phase 5.
 
    A **heavy box rule** means a whole stack, unchanged; a **thin rule** means a single node, opened up
    because it changed.

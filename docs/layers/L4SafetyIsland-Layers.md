@@ -22,9 +22,11 @@ box runs on.
 | **5 · B1–B4** | Phase 5 once per behaviour | `L4SafetyIsland-Layer6-B1-DegradeADS.tex` … `-B4-EmergencyStop.tex` |
 | — | All five on uniform landscape pages | `L4SafetyIsland-Layers.tex` → `.pdf` |
 
-**Phase 1 is redrawn.** Phase 1 restates the published Autoware node graph
+**Phase 1 is redrawn, phase 4 is reused.** Phase 1 restates the published Autoware node graph
 ([../ArchitectureMain.pdf](../ArchitectureMain.pdf)) in this series' own visual language, because a first page in a different
 drawing style breaks the progression — the eye reads the change of style as a change of content.
+Phase 4 is the node diagram already built in [L4SafetyIsland-Layer4-ChangedNodes.md](L4SafetyIsland-Layer4-ChangedNodes.md); duplicating it here would fork the
+source of truth.
 
 ---
 
@@ -111,11 +113,12 @@ cd layers
 latexmk -pdf L4SafetyIsland-Layer1-AutowareToday.tex
 latexmk -pdf L4SafetyIsland-Layer2-AutowareAbstract.tex
 latexmk -pdf L4SafetyIsland-Layer3-IslandAbstract.tex
-latexmk -pdf L4SafetyIsland-Layer4-ChangedNodes.tex
 latexmk -pdf L4SafetyIsland-Layer5-IslandNodes.tex
 for f in L4SafetyIsland-Layer6-B*.tex; do latexmk -pdf $f; done
-latexmk -pdf L4SafetyIsland-Layers.tex     # collects all five
+latexmk -pdf L4SafetyIsland-Layers.tex     # collects all five, needs phase 4 built
 ```
+
+Phase 4 comes from [L4SafetyIsland-Layer4-ChangedNodes.md](L4SafetyIsland-Layer4-ChangedNodes.md); build it there first if it is missing.
 
 ---
 
