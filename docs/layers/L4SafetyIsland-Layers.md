@@ -1,7 +1,7 @@
 # L4 Safety Island — What Changes in Autoware, in Five Phases
 
 **A progressive series from the published Autoware node diagram to the Safety Island alone.**
-Derived from design version 20260912. Nothing here modifies the design document.
+Derived from design version 20260918. Nothing here modifies the design document.
 
 The series exists because "what does the Safety Island change?" cannot be answered at one zoom level.
 At node level the change is invisible in the noise of ninety boxes; at stack level the change is

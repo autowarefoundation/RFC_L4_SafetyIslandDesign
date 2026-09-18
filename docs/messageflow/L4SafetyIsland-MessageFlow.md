@@ -1,6 +1,6 @@
 # L4 Safety Island — Island Message Flow, Every Node
 
-**Companion to §10.2 of [L4SafetyIsland_SoftwareDesign.md](../L4SafetyIsland_SoftwareDesign_GitHub.md).** Derived from design version 20260912.
+**Companion to §10.2 of [L4SafetyIsland_SoftwareDesign.md](../L4SafetyIsland_SoftwareDesign_GitHub.md).** Derived from design version 20260918.
 This file and its diagram add to the design document; they do not modify it.
 
 §10.2 *The island sensing chain* draws only the nodes that consume island sensor data: the five
@@ -257,7 +257,7 @@ written into I19's box rather than drawn: it would be the only line crossing the
 ## 5. What drawing every edge exposed in the design
 
 Drawing the complete graph forces every message to have exactly one producer and at least one
-consumer. The items below are places where the design document, as of 20260912, does not yet say
+consumer. The items below are places where the design document, as of 20260918, does not yet say
 which. **None is changed here.** Each is drawn as the most literal reading of the text, and each is a
 candidate for the next revision or the open-decision list.
 

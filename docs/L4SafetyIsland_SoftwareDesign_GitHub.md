@@ -2,7 +2,7 @@
 
 **Part 1 — Node Allocation between the Safety Island and the High-Performance Computer**
 
-Reference Design WG · draft for WG review · **Version 20260912**
+Reference Design WG · draft for WG review · **Version 20260918**
 
 > **Document version.** The version is a date-code, `YYYYMMDD`. The four artefacts of this
 > deliverable — this Markdown source, the slide deck, the review edition and the discussion
@@ -13,7 +13,8 @@ Reference Design WG · draft for WG review · **Version 20260912**
 
 | Version | Issued | Status and scope |
 | :-- | :-- | :-- |
-| **20260912** | 2026-09-12 | **Editorial revision**, superseding version 20260903. Adds to [§4](#4-autoware-nodes-allocated-to-the-safety-island) a five-phase figure series elaborating the node allocation — Autoware as it stands, the same graph abstracted, the same boxes after the island, what changed at node level, and the island alone. No normative change: no behaviour, node, interface row or open decision is added, removed or altered |
+| **20260918** | 2026-09-18 | **Major revision**, superseding version 20260912. *(1)* Recasts [B1](#b1--degrade-the-ads-when-the-odd-cannot-be-held) from a constraint ladder into an **ODD switch negotiation**. The island declares the current operating domain unsatisfiable and **names no target**; the HPC selects a domain it can meet and declares it through [`H4`](#7-new-nodes-to-add-on-the-hpc); the island verifies that answer against its own measured envelope *and* against the vehicle's measured behaviour. [B1](#b1--degrade-the-ads-when-the-odd-cannot-be-held) gains a **Demand** row, an **Acceptance test** row and both exits, and becomes the only behaviour that returns the vehicle to normal L4 operation — in a narrower domain than it started in. Adds `T_ack` and the safety timeout `T_odd`, the latter bounded from above by `t_margin − t_pullover`. *(2)* Makes the **takeover explicit**: when `T_odd` expires the successor is chosen by what the island still *has*, not by what the HPC did wrong — blackout → [B4](#b4--emergency-stop-when-the-island-is-blind), HPC lost → [B2](#b2--keep-the-vehicle-in-its-lane-after-loss-of-the-hpc), otherwise → [B3](#b3--pull-over-if-the-odd-continues-to-fail), tested in that order (§3.2). *(3)* Defines **`v_hold` as a ramp** rather than a constant. It is the running minimum of five bounds, monotone non-increasing within an episode, decaying to `v_entry` so that escalation from [B2](#b2--keep-the-vehicle-in-its-lane-after-loss-of-the-hpc) to [B3](#b3--pull-over-if-the-odd-continues-to-fail) costs no further deceleration time: the hold window becomes preparation instead of dead time. *(4)* Gives [B3](#b3--pull-over-if-the-odd-continues-to-fail) a **second refuge source**. When [`H8`](#7-new-nodes-to-add-on-the-hpc) offers none, [`N18`](#63-pull-over-mrm-after-hpc-loss) detects a lateral clearance from island sensing alone — always `EMERGENCY_ONLY`, never displacing a nominated refuge, bounded by `T_refuge` — and the three outcomes are held apart: *found*, *positively none* (→ in-lane stop, the corridor still in hand) and *inconclusive* (→ [B4](#b4--emergency-stop-when-the-island-is-blind), because an inconclusive search is a capability statement). *(5)* Adds the §6.4 **Unsatisfiable** rung and its six-step verification, §5.3 rung 1b, and new material on [`H4`](#7-new-nodes-to-add-on-the-hpc), [`H8`](#7-new-nodes-to-add-on-the-hpc), [`N18`](#63-pull-over-mrm-after-hpc-loss), [`N19`](#64-odd-degradation-on-weather-and-visibility) and the §8 interface tables. Adds open decisions 17 and 18. **Marker yellow continues to mark everything new since 20260827**, so this revision's material is highlighted alongside 20260903's rather than in place of it. |
+| 20260912 | 2026-09-12 | **Editorial revision**, superseding version 20260903. Adds to [§4](#4-autoware-nodes-allocated-to-the-safety-island) a five-phase figure series elaborating the node allocation — Autoware as it stands, the same graph abstracted, the same boxes after the island, what changed at node level, and the island alone. No normative change: no behaviour, node, interface row or open decision is added, removed or altered |
 | 20260903 | 2026-09-03 | **Major revision**, superseding version 20260827. *(1)* Adds **[B4](#b4--emergency-stop-when-the-island-is-blind)** as the fourth declared behaviour: what the island does when it has lost the sensing that [B2](#b2--keep-the-vehicle-in-its-lane-after-loss-of-the-hpc) and [B3](#b3--pull-over-if-the-odd-continues-to-fail) both depend on. Emergency stop was previously only step 3b of the §5.3 graded reaction and the bottom rung of the §6.3 abort ladder; it is now *declared*, with its own trigger, deadline, sensor rung and traceability row. *(2)* Admits the **first optional HPC-produced input** — the object list of [§3.5](#35-optional-enrichment-the-hpc-object-list) — which all four behaviours may use under the new **monotone-conservatism** rule, through the optional node [`N20`](#62-island-safety-sensing). *(3)* **Corrects a misconception about termination:** [B3](#b3--pull-over-if-the-odd-continues-to-fail) was written as *the* terminal behaviour. Both [B3](#b3--pull-over-if-the-odd-continues-to-fail) and [B4](#b4--emergency-stop-when-the-island-is-blind) end the drive cycle and neither gives it back; they differ in *where* the vehicle stops and on what evidence, not in whether the drive continues (§3.2). *(4)* **Both terminal behaviours now raise the hazard lamps at entry**, not at standstill, and the indicator conflict this creates for [B3](#b3--pull-over-if-the-odd-continues-to-fail) is recorded for the WG. *(5)* Corrects the claim that [B4](#b4--emergency-stop-when-the-island-is-blind) has no edge out: its one successor is `SAFE_STOP`, and what it has no edge to is any behaviour above it. *(6)* Adds the §6.3 **abort-ladder illustration** — each rung down removes a requirement and never adds one. Adds open decisions 15 and 16. Material new since 20260827 is marked in **marker yellow** throughout this document and the three artefacts built from it. |
 | 20260827 | distributed 2026-08-28 | First WG review draft. Three declared behaviours ([B1](#b1--degrade-the-ads-when-the-odd-cannot-be-held)–[B3](#b3--pull-over-if-the-odd-continues-to-fail)), node allocation, interface contract, fourteen open decisions. |
 
@@ -127,28 +128,78 @@ traceable to one of them.
 
 | ID | Behaviour | One-line statement |
 | :-- | :-- | :-- |
-| **B1** | **Degrade the ADS when the ODD cannot be held** | When the operating envelope is no longer satisfied, progressively constrain the ADS — and demand that it constrain itself — before any authority is taken. |
-| **B2** | **Keep the vehicle in its lane after loss of the HPC** | When the HPC is unavailable and [B1](#b1--degrade-the-ads-when-the-odd-cannot-be-held) therefore cannot be used, take authority and hold the vehicle in its current lane — for a bounded window — while the lane is still observable, pending the HPC's return or escalation. |
-| **B3** | **Pull over if the ODD continues to fail** | When degradation does not restore the envelope within a declared deadline, bring the vehicle out of the running lane to a standstill in a nominated refuge. |
+| **B1** | **Degrade the ADS when the ODD cannot be held** | When the operating envelope is no longer satisfied, <mark>require the ADS to move to an operating domain it *can* satisfy</mark> — progressively constraining it, and demanding that it constrain itself, <mark>until it does</mark> — before any authority is taken. |
+| **B2** | **Keep the vehicle in its lane after loss of the HPC** | When the HPC is unavailable and [B1](#b1--degrade-the-ads-when-the-odd-cannot-be-held) therefore cannot be used, take authority and hold the vehicle in its current lane — for a bounded window, <mark>at a decaying speed the island can itself justify, while staging the exit manoeuvre</mark> — while the lane is still observable, pending the HPC's return or escalation. |
+| **B3** | **Pull over if the ODD continues to fail** | When degradation does not restore the envelope within a declared deadline, bring the vehicle out of the running lane to a standstill in a refuge — <mark>nominated by the HPC where one is offered, detected by the island's own sensors where one is not</mark>. |
 | <mark>**B4**</mark> | <mark>**Emergency stop when the island is blind**</mark> | <mark>When the island has lost the sensing that [B2](#b2--keep-the-vehicle-in-its-lane-after-loss-of-the-hpc) and [B3](#b3--pull-over-if-the-odd-continues-to-fail) both depend on, decelerate to a standstill where the vehicle already is — no lane keeping, no refuge, no lateral manoeuvre.</mark> |
 
 ---
 
 #### B1 — Degrade the ADS when the ODD cannot be held
 
+<mark>Read as a constraint ladder, [B1](#b1--degrade-the-ads-when-the-odd-cannot-be-held) is a demand that the ADS *slow down*. That is only its
+enforcement. [B1](#b1--degrade-the-ads-when-the-odd-cannot-be-held)'s actual object is an **operating domain**: the island measures the world, declares
+that the domain the vehicle is currently being driven in is no longer satisfiable, and requires the HPC
+to move to one that is. The speed cap is what holds the vehicle safe *while* that happens — never what
+resolves it.</mark>
+
+<mark>The island does not choose the new domain. It does not hold the HPC's catalogue of operating domains,
+does not know which L4 behaviours each of them admits, and choosing between them is planning — which is
+not on the island by [R4](#21-partitioning-rules) and [R5](#21-partitioning-rules). So the exchange is asymmetric, and deliberately so:</mark>
+
+> <mark>**The island declares what the world will support. The HPC declares which domain it will operate
+> in. The island verifies that answer against its own measurements, and accepts it or does not.**</mark>
+
+<mark>That asymmetry is what makes [B1](#b1--degrade-the-ads-when-the-odd-cannot-be-held) the only *exitable* behaviour. [B3](#b3--pull-over-if-the-odd-continues-to-fail) and [B4](#b4--emergency-stop-when-the-island-is-blind) end the drive
+cycle; [B2](#b2--keep-the-vehicle-in-its-lane-after-loss-of-the-hpc) holds one open. [B1](#b1--degrade-the-ads-when-the-odd-cannot-be-held) is the only behaviour that returns the vehicle to normal L4
+operation — in a narrower domain than the one it started in, driven by the HPC, with the island back to
+supervising. It exits **upward** when the HPC is driving normally inside a domain the island has
+accepted, and **downward** — to [B2](#b2--keep-the-vehicle-in-its-lane-after-loss-of-the-hpc), [B3](#b3--pull-over-if-the-odd-continues-to-fail) or [B4](#b4--emergency-stop-when-the-island-is-blind) — when the safety timeout `T_odd` expires
+without one.</mark>
+
 | | |
 | :-- | :-- |
 | **Trigger** | [`N19`](#64-odd-degradation-on-weather-and-visibility) ODD margin falls below threshold (visibility, friction, precipitation, ambient light); or [`N17`](#62-island-safety-sensing) reports sensor degradation; or [`H4`](#7-new-nodes-to-add-on-the-hpc) reports the HPC's own ODD exit; or [`N18`](#63-pull-over-mrm-after-hpc-loss) reports `pull_over_available = false` while margin is already marginal |
 | **Precondition** | **The HPC is alive and responsive.** [B1](#b1--degrade-the-ads-when-the-odd-cannot-be-held) is cooperative by construction: every rung of it is executed by the HPC. If the HPC is unavailable there is nothing to constrain, and the island enters [**B2**](#b2--keep-the-vehicle-in-its-lane-after-loss-of-the-hpc) instead |
 | **Authority** | **The island constrains; the HPC executes.** The island does not take control under [B1](#b1--degrade-the-ads-when-the-odd-cannot-be-held). |
-| **Response** | Graded, in order: *notify* → *restrict* (hard speed cap from the speed law, §6.4) → *request MRM* from the HPC |
-| **Deadlines** | Comply with a restriction within **3 s**; begin a requested MRM within **10 s**; complete it within **60 s** |
-| **Observable output** | `/si/out/odd_verdict`, `/si/out/constraints` (mode `ALLOW` → `CONSTRAIN` → `MRM`). `MrmState` remains `NORMAL` throughout: **[B1](#b1--degrade-the-ads-when-the-odd-cannot-be-held) is not an MRM** |
-| **Success criterion** | Measured vehicle speed converges to `v_max` within the deadline, and the ODD margin is restored |
-| **Failure** | Non-compliance within any deadline is raised to [`N8`](#61-supervision-state-and-fallback) as a fault and **escalates to [B3](#b3--pull-over-if-the-odd-continues-to-fail)** |
+| <mark>**Demand**</mark> | <mark>[`N19`](#64-odd-degradation-on-weather-and-visibility) publishes `odd_satisfiable = false` on `/si/out/odd_verdict`, with the measured envelope (`d_visible`, `a_brake`, derived `v_max`), the ODD dimension that failed, and the remaining `T_odd` budget. **The island names no target domain**: the demand is *leave this one*, not *enter that one*</mark> |
+| **Response** | Graded, in order: *notify* → <mark>*demand an ODD switch*</mark> → *restrict* (hard speed cap from the speed law, §6.4) → *request MRM* from the HPC. <mark>The rungs are cumulative, not alternative — the cap stays on while the switch is negotiated, and is lifted only by an accepted switch or by the envelope's own recovery</mark> |
+| <mark>**Acceptance test**</mark> | <mark>Two tests, both measurable on the island, neither needing the HPC's cooperation. **(1) Declaration** — the domain [`H4`](#7-new-nodes-to-add-on-the-hpc) now reports as active must lie inside the island's measured envelope: speed ceiling at or below `v_max`, required sensing range at or below `d_visible`, assumed friction at or below the estimate. **(2) Behaviour** — measured speed, acceleration and curvature converge on that domain's bounds within `T_odd`. A declaration that passes (1) but fails (2) is a *false declaration*, and counts as no declaration at all</mark> |
+| **Deadlines** | <mark>Declare a new active domain — or declare exhaustion — within `T_ack` = **2 s** of the demand; satisfy it within the safety timeout `T_odd` = **10 s** (open decision 17).</mark> Comply with a restriction within **3 s**; begin a requested MRM within **10 s**; complete it within **60 s** |
+| **Observable output** | `/si/out/odd_verdict` <mark>(carrying `odd_satisfiable`, the failed dimension, the accepted domain once there is one, and the remaining `T_odd` budget)</mark>, `/si/out/constraints` (mode `ALLOW` → `CONSTRAIN` → `MRM`). `MrmState` remains `NORMAL` throughout: **[B1](#b1--degrade-the-ads-when-the-odd-cannot-be-held) is not an MRM** |
+| **Success criterion** | <mark>The HPC declares a domain that passes both acceptance tests and holds it over the recovery window — *or*, where the envelope recovers on its own,</mark> measured vehicle speed converges to `v_max` within the deadline, and the ODD margin is restored <mark>without a switch having been needed</mark> |
+| <mark>**Exit — upward: the ADS operates in an accepted domain**</mark> | <mark>Both acceptance tests pass and hold for the §6.4 recovery window — ~30 s of clear evidence, with [`H4`](#7-new-nodes-to-add-on-the-hpc)'s own verdict agreeing. [`N3`](#61-supervision-state-and-fallback) returns `/si/out/constraints` to `ALLOW` and the island to supervision. **The vehicle is driving normally again, in a narrower domain than the one it started in** — that narrowing is [B1](#b1--degrade-the-ads-when-the-odd-cannot-be-held)'s *outcome*, not a residual fault, and it persists until the envelope itself recovers</mark> |
+| <mark>**Exit — downward: `T_odd` expires**</mark> | <mark>Escalate. *Which* behaviour takes over is decided by what the island still **has**, not by what the HPC did wrong — sensing blackout ([`N17`](#62-island-safety-sensing)) → **[B4](#b4--emergency-stop-when-the-island-is-blind)**; HPC unavailable ([`N2`](#61-supervision-state-and-fallback)) → **[B2](#b2--keep-the-vehicle-in-its-lane-after-loss-of-the-hpc)**; otherwise, the HPC being alive and either non-compliant or out of satisfiable domains → **[B3](#b3--pull-over-if-the-odd-continues-to-fail)**. The tests are applied in that order</mark> |
+| **Failure** | Non-compliance within any deadline is raised to [`N8`](#61-supervision-state-and-fallback) as a fault <mark>and escalates by the rule in the row above. A domain that passes acceptance test (1) but fails (2) is additionally recorded by [`N11`](#61-supervision-state-and-fallback) as a SOTIF event: an HPC reporting a domain it is not in is §6.4's confidently-wrong case, arriving through a second channel</mark> |
 | **Hysteresis** | Degrade on ~2 s of consistent evidence; recover only after ~30 s of clear evidence **and** agreement from [`H4`](#7-new-nodes-to-add-on-the-hpc) |
 | **Optional enrichment** ([§3.5](#35-optional-enrichment-the-hpc-object-list)) | The HPC object list, while it is fresh. Feeds the **self-consistency veto** and adds a conservative term to [`N10`](#61-supervision-state-and-fallback)'s envelope. Never relaxes a bound and never satisfies a deadline |
 | **Minimum sensor rung** (§9.4) | **C** — visibility estimation needs both the radar/lidar divergence test and the camera contrast test |
+
+<mark>**Honest exhaustion is not non-compliance.**</mark> <mark>The HPC may answer the demand with *none of my domains
+is satisfiable*. That is a **compliant** answer and must not be run out as a timeout. It is the rung the
+§6.4 ladder already calls **Request MRM** — ask the HPC to pull over while it still can, with the map,
+the traffic law and the full planner available to it. An HPC-executed pull-over under [B1](#b1--degrade-the-ads-when-the-odd-cannot-be-held) is
+strictly better than an island-executed one under [B3](#b3--pull-over-if-the-odd-continues-to-fail): the island can verify a refuge, but it
+cannot choose one (§6.3). Exhaustion therefore routes to the MRM rung immediately, and only the MRM
+deadlines — 10 s to begin, 60 s to complete — then apply. **`T_odd` bounds silence and
+non-compliance, not honesty.**</mark>
+
+<mark>**`T_odd` is not a free parameter.**</mark> <mark>The safety timeout is bounded from above by physics the island
+is already measuring. While the switch is negotiated the envelope keeps shrinking, and [B3](#b3--pull-over-if-the-odd-continues-to-fail) has a
+precondition — a refuge that can still be reached and verified. `T_odd` must be shorter than the time in
+which the ODD margin, falling at its measured rate, would invalidate that precondition:</mark>
+
+```text
+T_odd  <  t_margin  −  t_pullover
+
+  t_margin    time until the measured ODD margin reaches zero, at its current rate   (N19)
+  t_pullover  time to execute a pull-over from the current speed to the refuge       (N18)
+```
+
+<mark>An island that negotiates until the moment the envelope fails has spent the budget the fallback
+needed. This is §6.3's refuge coverage guarantee, restated on the time axis instead of the distance
+axis, and it is why `T_odd` is declared per-situation by [`N19`](#64-odd-degradation-on-weather-and-visibility) rather than fixed as a
+constant.</mark>
 
 ---
 
@@ -158,8 +209,14 @@ traceable to one of them.
 is unavailable, so [B1](#b1--degrade-the-ads-when-the-odd-cannot-be-held) cannot be used — every rung of [B1](#b1--degrade-the-ads-when-the-odd-cannot-be-held) is executed by the HPC — while [B3](#b3--pull-over-if-the-odd-continues-to-fail) is not yet
 warranted, because the loss may still be transient and a pull-over is the more dangerous manoeuvre.
 Rather than commit immediately to a terminal manoeuvre, the island takes lateral and longitudinal
-authority, holds the vehicle in its current lane at a constrained speed, and waits, for a bounded
-window, to see whether the HPC comes back.
+authority, holds the vehicle in its current lane at a speed it <mark>continuously reduces</mark>, and waits, for
+a bounded window, to see whether the HPC comes back.
+
+<mark>The hold is not a plateau. Throughout the window the island is doing two things at once: waiting for
+the HPC, and **preparing to stop without it** — shedding speed onto the ramp defined below and keeping
+[`N18`](#63-pull-over-mrm-after-hpc-loss)'s refuge evaluation live, so that when the window closes the exit manoeuvre is already
+staged. A hold that merely maintains a constant speed and then discovers, at `T_hold`, that it must
+begin decelerating from that speed has spent the whole window buying nothing.</mark>
 
 The behaviour is only enterable while the **lane is still observable** — either the buffered map
 corridor is still fresh, or the island's own camera still sees the boundaries. That precondition is
@@ -171,21 +228,59 @@ what distinguishes [B2](#b2--keep-the-vehicle-in-its-lane-after-loss-of-the-hpc)
 | **Precondition** | A **valid corridor** exists — [`H3`](#7-new-nodes-to-add-on-the-hpc)'s buffered map corridor is still within its age limit, or [`N14`](#62-island-safety-sensing) reports lane boundaries with sufficient confidence. Without one, [B2](#b2--keep-the-vehicle-in-its-lane-after-loss-of-the-hpc) is not entered: the island goes directly to an in-lane stop on the heading tube |
 | **Corridor source, in priority order** | 1. [`H3`](#7-new-nodes-to-add-on-the-hpc) map-derived corridor while fresh · 2. [`N14`](#62-island-safety-sensing) perceived lane boundaries · 3. heading / yaw-rate tube |
 | **Authority** | **The island steers and brakes.** [`I9`](#41-migration-list)–[`I11`](#41-migration-list) are deselected; no HPC command is in the loop |
-| **Response** | Take authority → `I13 pure_pursuit` tracks the corridor centreline → decelerate to the island's constrained hold speed `v_hold` (§6.4 speed law, island ODD) → maintain lane, obstacle-aware against [`N16`](#62-island-safety-sensing) → hazard lamps on → hold for at most `T_hold` |
-| **Deadlines** | Authority transfer complete within the §9.2 fault-reaction budget (≤ 70 ms from first heartbeat miss); `v_hold` reached within the declared deceleration profile; `T_hold` is declared and finite — the hold is never open-ended (open decision 14) |
+| **Response** | Take authority → `I13 pure_pursuit` tracks the corridor centreline → <mark>decelerate onto the `v_hold` ramp defined in the next row — not to a constant hold speed</mark> → maintain lane, obstacle-aware against [`N16`](#62-island-safety-sensing) → hazard lamps on → <mark>keep [`N18`](#63-pull-over-mrm-after-hpc-loss)'s refuge evaluation running throughout, so [B3](#b3--pull-over-if-the-odd-continues-to-fail) inherits a staged manoeuvre rather than starting one</mark> → hold for at most `T_hold` |
+| <mark>**Speed — `v_hold`**</mark> | <mark>**Not a constant, and not `v_max`.** `v_hold` is the running minimum of five bounds, re-evaluated every cycle, and it *decays across the hold window* — the full definition is below the table. The island is driving on its own reduced sensor set, under a fallback controller, inside the island's own narrower ODD (open decision 13); every one of those is a reason `v_hold` sits below the speed the HPC was holding</mark> |
+| **Deadlines** | Authority transfer complete within the §9.2 fault-reaction budget (≤ 70 ms from first heartbeat miss); `v_hold` reached within the declared deceleration profile <mark>and tracked continuously thereafter as it decays</mark>; `T_hold` is declared and finite — the hold is never open-ended (open decision 14) <mark>— and at `T_hold` the vehicle must already be at `v_entry`, so that escalation to [B3](#b3--pull-over-if-the-odd-continues-to-fail) costs no further deceleration time</mark> |
 | **Observable output** | `MrmState` = `MRM_OPERATING`; [`N3`](#61-supervision-state-and-fallback) mode = `LANE_KEEP_HOLD`; `/si/out/state` carries the authority holder, the corridor source in use, lateral deviation and the remaining hold budget |
-| **Bound** | Lateral deviation from corridor centre within the declared threshold; corridor validity age-checked per source; [`N7`](#61-supervision-state-and-fallback) bounds lateral acceleration, steering rate and jerk |
-| **Success criterion** | Lateral deviation stays inside the threshold for the whole episode, **and** the episode ends in one of the two authorised exits below — never by `T_hold` simply lapsing into an undefined state |
+| **Bound** | Lateral deviation from corridor centre within the declared threshold; corridor validity age-checked per source; [`N7`](#61-supervision-state-and-fallback) bounds lateral acceleration, steering rate and jerk <mark>; `v_hold` is monotone non-increasing for the whole episode</mark> |
+| **Success criterion** | Lateral deviation stays inside the threshold for the whole episode, <mark>measured speed stays at or below `v_hold` throughout</mark>, **and** the episode ends in one of the two authorised exits below — never by `T_hold` simply lapsing into an undefined state |
 | **Exit — upward: the HPC resumes** | [`N2`](#61-supervision-state-and-fallback) observes the heartbeat restored **and** valid, in-envelope trajectories for a declared confirmation window. [`N3`](#61-supervision-state-and-fallback) then hands authority back through [`I3`](#41-migration-list)'s smooth-transition path and the island returns to supervision under [**B1**](#b1--degrade-the-ads-when-the-odd-cannot-be-held) — entering at `CONSTRAIN`, not `ALLOW`, and releasing only under the §6.4 hysteresis. **This is the only reversible transition in the ladder** |
-| **Exit — downward: the HPC stays lost** | `T_hold` expires with no confirmed recovery → escalate to [**B3**](#b3--pull-over-if-the-odd-continues-to-fail). If [`N18`](#63-pull-over-mrm-after-hpc-loss) reports `pull_over_available = false`, [B3](#b3--pull-over-if-the-odd-continues-to-fail) degenerates to an in-lane stop, executed under [B2](#b2--keep-the-vehicle-in-its-lane-after-loss-of-the-hpc)'s own authority and control law |
+| **Exit — downward: the HPC stays lost** | `T_hold` expires with no confirmed recovery → escalate to [**B3**](#b3--pull-over-if-the-odd-continues-to-fail) <mark>, entered at `v_entry` with a refuge already under evaluation rather than at the hold speed with nothing staged</mark>. If [`N18`](#63-pull-over-mrm-after-hpc-loss) reports `pull_over_available = false`, [B3](#b3--pull-over-if-the-odd-continues-to-fail) degenerates to an in-lane stop, executed under [B2](#b2--keep-the-vehicle-in-its-lane-after-loss-of-the-hpc)'s own authority and control law |
 | **Failure** | Corridor lost mid-episode — all three sources invalid or expired → immediate in-lane stop on the heading tube, no waiting for `T_hold`. [`I19`](#41-migration-list) AEB fires, or [`N9`](#61-supervision-state-and-fallback) reports the actuators not tracking → <mark>emergency stop ([B4](#b4--emergency-stop-when-the-island-is-blind))</mark> |
 | **Optional enrichment** ([§3.5](#35-optional-enrichment-the-hpc-object-list)) | The last HPC object digest inside its carry-over budget, to lower `v_hold` or shorten [`N7`](#61-supervision-state-and-fallback)'s ramp. Never extends `T_hold` and never substitutes for the corridor |
 | **Minimum sensor rung** (§9.4) | **A** — 2D lidar plus island IMU and wheel speed. [B2](#b2--keep-the-vehicle-in-its-lane-after-loss-of-the-hpc) is the behaviour that must survive on the smallest sensor set |
 
+##### The `v_hold` ramp
+
+<mark>`v_hold` is the running minimum of five bounds, re-evaluated every cycle. Four of them are static
+ceilings; the fifth is what makes the hold a ramp:</mark>
+
+```text
+v_hold(t) = min( v_max,         §6.4 speed law, on island sensing alone — stop within what you see   (N19)
+                 v_odd_island,  the island's own declared ODD ceiling — open decision 13
+                 v_corridor,    the ceiling the corridor source currently in use can support         (N5)
+                 v_track,       speed at which I13 holds the corridor curvature inside N7's bounds
+                 v_exit(t) )    speed from which the staged exit manoeuvre is still executable       (N18)
+
+v_exit(t)  =  the profile that arrives at v_entry when t reaches T_hold
+v_entry    =  the speed at which B3 enters the pull-over, or at which the in-lane stop begins
+```
+
+<mark>Two rules govern it, and both are normative.</mark>
+
+<mark>**`v_hold` is monotone non-increasing within an episode.** It never rises. A corridor source that
+degrades mid-episode — the map corridor ageing out, the markings fading, the fall back to the heading
+tube — lowers `v_corridor` and therefore `v_hold`, and nothing raises it again. The only release is the
+authority hand-back, and that leaves [B2](#b2--keep-the-vehicle-in-its-lane-after-loss-of-the-hpc) altogether. An island that recovers speed on its own
+evidence, while the HPC is still gone, has quietly promoted itself from *holding* to *driving*.</mark>
+
+<mark>**The ramp lands on `v_entry`, not on the hold speed.** `v_exit(t)` is what converts the hold window
+from dead time into preparation. At `t = T_hold` the vehicle is already at the speed [B3](#b3--pull-over-if-the-odd-continues-to-fail) needs, so
+the downward exit is a *continuation* of a deceleration already underway rather than the start of a new
+one. This is the same bounding argument [B1](#b1--degrade-the-ads-when-the-odd-cannot-be-held)'s `T_odd` makes: the window a behaviour spends waiting
+must not consume the budget the behaviour underneath it needs.</mark>
+
+<mark>Note what this rules out. `v_hold` is **not** the HPC's last commanded speed, **not** the posted limit,
+and **not** `v_max` alone — `v_max` answers only *can I stop within what I can see*, which is necessary
+and nowhere near sufficient for a fallback controller tracking a corridor it may be inferring from
+camera boundaries. Every term above is measured or declared on the island, so `v_hold` remains
+defensible after the HPC is gone — which is the only condition under which it is ever used.</mark>
+
 The three sources degrade in capability as well as in confidence, and [B2](#b2--keep-the-vehicle-in-its-lane-after-loss-of-the-hpc)'s admissible duration
 degrades with them: the buffered map corridor is exact but ages out, perceived boundaries hold as long
 as the markings are visible, and the heading tube is a stopping aid rather than a lane-keeping one. A
-`T_hold` granted on a map corridor is not transferable to a heading tube.
+`T_hold` granted on a map corridor is not transferable to a heading tube, <mark>and neither is a `v_hold`:
+the corridor source sets both the duration of the hold and its ceiling, through `v_corridor`</mark>.
 
 **Lateral containment supervision is not [B2](#b2--keep-the-vehicle-in-its-lane-after-loss-of-the-hpc).** The continuous check — [`N5`](#61-supervision-state-and-fallback) against the corridor, with
 [`I8`](#41-migration-list) and [`N10`](#61-supervision-state-and-fallback) bounding commanded curvature and steering rate *while the HPC steers* — runs whenever the
@@ -214,15 +309,48 @@ mission only through the authority hand-back above.
 | | |
 | :-- | :-- |
 | **Trigger** | [B1](#b1--degrade-the-ads-when-the-odd-cannot-be-held) escalation exhausted — the HPC did not comply, or the ODD was not restored within the deadline; **or** [B2](#b2--keep-the-vehicle-in-its-lane-after-loss-of-the-hpc)'s hold window `T_hold` expired with the HPC still lost, while a valid refuge is buffered |
-| **Precondition** | [`N18`](#63-pull-over-mrm-after-hpc-loss) reports `pull_over_available = true`, and the nominated refuge is verified free against [`N16`](#62-island-safety-sensing)'s live free space |
+| **Precondition** | <mark>A refuge exists that the island can **verify free** and can still reach at the current speed — from either source in the row below.</mark> [`N18`](#63-pull-over-mrm-after-hpc-loss) reports `pull_over_available = true`, and the <mark>candidate</mark> refuge is verified free against [`N16`](#62-island-safety-sensing)'s live free space |
+| <mark>**Refuge source, in priority order**</mark> | <mark>1. [`H8`](#7-new-nodes-to-add-on-the-hpc)'s **nominated** refuge — map-validated and law-checked by the HPC, verified free by [`N16`](#62-island-safety-sensing) before use. 2. [`N18`](#63-pull-over-mrm-after-hpc-loss)'s own **island-detected** refuge — a lateral clearance found in [`N16`](#62-island-safety-sensing)'s free space using [`N13`](#62-island-safety-sensing) 2D lidar, [`N14`](#62-island-safety-sensing) lane-edge geometry and [`N15`](#62-island-safety-sensing) ultrasonics, admitted only under `legality = EMERGENCY_ONLY`. 3. Neither — no refuge, and the abort ladder decides what happens next</mark> |
 | **Authority** | **The island steers, brakes and signals.** [B2](#b2--keep-the-vehicle-in-its-lane-after-loss-of-the-hpc) steers to stay where the vehicle already is; [B3](#b3--pull-over-if-the-odd-continues-to-fail) is the only behaviour in which the island initiates lateral *displacement* — deliberately leaving the running lane. |
-| **Response** | <mark>**Hazard lamps on the moment the manoeuvre is commanded**</mark> → indicator on → bounded lateral displacement to the refuge → deceleration → standstill → secure (gear P, <mark>lamps stay on</mark>) |
+| **Response** | <mark>Open the refuge search across **both** sources the moment [B3](#b3--pull-over-if-the-odd-continues-to-fail) is entered, and keep it open while decelerating</mark> → <mark>**Hazard lamps on the moment the manoeuvre is commanded**</mark> → indicator on → bounded lateral displacement to <mark>the first refuge that passes verification</mark> → deceleration → standstill → secure (gear P, <mark>lamps stay on</mark>) |
+| <mark>**Deadlines**</mark> | <mark>The refuge search is bounded by `T_refuge` = **5 s** from [B3](#b3--pull-over-if-the-odd-continues-to-fail) entry, and additionally by a distance-travelled-searching cap, for the reason open decision 15 gives about time and distance not being the same constraint at speed (both are open decision 18). Once a refuge is accepted, the §6.4 MRM deadlines apply — begin within **10 s**, complete within **60 s**</mark> |
 | **Observable output** | `MrmState` = `MRM_OPERATING`, behaviour = `PULL_OVER` (see open decision 10); [`N18`](#63-pull-over-mrm-after-hpc-loss) `MrmBehaviorStatus` |
-| **Success criterion** | Standstill within the refuge, near field clear, `MrmState` = `MRM_SUCCEEDED` |
-| **Abort** | Per the ladder in §6.3 — every rung degrades to an **in-lane stop under [B2](#b2--keep-the-vehicle-in-its-lane-after-loss-of-the-hpc)'s authority and control law**, <mark>then to emergency stop ([B4](#b4--emergency-stop-when-the-island-is-blind))</mark> |
+| **Success criterion** | Standstill within the <mark>accepted</mark> refuge <mark>— whichever source offered it —</mark>, near field clear, `MrmState` = `MRM_SUCCEEDED` |
+| **Abort** | Per the ladder in §6.3 — every rung degrades to an **in-lane stop under [B2](#b2--keep-the-vehicle-in-its-lane-after-loss-of-the-hpc)'s authority and control law**, <mark>then to emergency stop ([B4](#b4--emergency-stop-when-the-island-is-blind))</mark>. <mark>Two of those rungs are now told apart by *what the search concluded*. A search that **positively determines** that no usable refuge exists — neither source offers one — abandons the pull-over to the **in-lane stop**, which still has a corridor to work with. A search that reaches `T_refuge` **without a determination either way** goes to [B4](#b4--emergency-stop-when-the-island-is-blind). An inconclusive search is a statement about the island's capability, not about the road, and capability loss goes to the floor (§3.2)</mark> |
 | <mark>**Exit**</mark> | <mark>**`SAFE_STOP`, as [B4](#b4--emergency-stop-when-the-island-is-blind)'s is.** [B3](#b3--pull-over-if-the-odd-continues-to-fail) is terminal for the drive cycle: one successor, the secured standstill, and no edge back up. The two behaviours differ in *where* they leave the vehicle and in what they needed in order to get there, not in whether the drive continues afterwards (§3.2)</mark> |
 | **Optional enrichment** ([§3.5](#35-optional-enrichment-the-hpc-object-list)) | The last HPC object digest, to **disqualify** a refuge. It may never qualify one |
 | **Minimum sensor rung** (§9.4) | **B** — rung A plus forward and rear-corner radar above ~30 km/h |
+
+<mark>**The island may now find a refuge. It still may not choose one.**</mark> <mark>§6.3's split — the HPC nominates,
+the island verifies and executes — holds wherever the HPC is there to nominate. Under [B3](#b3--pull-over-if-the-odd-continues-to-fail) it
+frequently is not: [B3](#b3--pull-over-if-the-odd-continues-to-fail) is reached from [B2](#b2--keep-the-vehicle-in-its-lane-after-loss-of-the-hpc) precisely when the HPC has been lost, and
+[`H8`](#7-new-nodes-to-add-on-the-hpc)'s buffered refuge set ages out like every other buffered input (§8.1). An island with
+no second source makes the refuge contract a single point of failure for the one manoeuvre it exists to
+enable.</mark>
+
+<mark>So the island gets a second source, and it is deliberately weaker than the first:</mark>
+
+| | <mark>[`H8`](#7-new-nodes-to-add-on-the-hpc) nominated refuge</mark> | <mark>[`N18`](#63-pull-over-mrm-after-hpc-loss) island-detected refuge</mark> |
+| :-- | :-- | :-- |
+| <mark>**Physically free**</mark> | <mark>verified by [`N16`](#62-island-safety-sensing), before use</mark> | <mark>verified by [`N16`](#62-island-safety-sensing), before use</mark> |
+| <mark>**Legal**</mark> | <mark>checked against the map and traffic law by the HPC</mark> | <mark>**unknown** — the island holds neither</mark> |
+| <mark>**`legality` value**</mark> | <mark>`LEGAL_STOP` or `EMERGENCY_ONLY`, as nominated</mark> | <mark>`EMERGENCY_ONLY`, always</mark> |
+| <mark>**Admissible**</mark> | <mark>whenever offered and within `validity_distance_m`</mark> | <mark>only when no nominated refuge is available</mark> |
+| <mark>**Sensors**</mark> | <mark>[`N16`](#62-island-safety-sensing) free space</mark> | <mark>[`N16`](#62-island-safety-sensing) free space + [`N13`](#62-island-safety-sensing) 2D lidar + [`N14`](#62-island-safety-sensing) lane edge + [`N15`](#62-island-safety-sensing) ultrasonic</mark> |
+
+<mark>The asymmetry is the whole argument. An island-detected refuge is a **physically clear lateral
+space** and nothing more — a verge, a hard shoulder, a wide kerb, and equally a cycle lane, a bus stop
+or a driveway, which the island cannot tell apart. Admitting one means preferring an unlawful stopping
+place to a stop in a live running lane. That trade is defensible, but only under the `EMERGENCY_ONLY`
+semantics the refuge contract already carries, and only in that direction: it is the judgement a human
+driver makes with a failed engine, and it is why the island-detected refuge sits *second* in the
+priority order and never displaces a nominated one.</mark>
+
+<mark>What the island still cannot do is **choose**, in the sense §6.3 rules out. It does not weigh two
+candidate refuges against each other for legality, does not reason about bridges or bus stops, and does
+not defer a stop in order to reach a better place further on. It takes the first lateral clearance that
+passes verification, inside `T_refuge`. **Search, not selection** — the distinction that keeps map and
+planner semantics off the island ([R4](#21-partitioning-rules), [R5](#21-partitioning-rules)).</mark>
 
 <mark>**Both terminal behaviours raise the hazard lamps on entry, not on arrival.**</mark> <mark>[B3](#b3--pull-over-if-the-odd-continues-to-fail) raises them when
 the pull-over is commanded and [B4](#b4--emergency-stop-when-the-island-is-blind) when the blackout is declared, and in both cases they stay on
@@ -297,7 +425,11 @@ The four are episodes on a ladder, and what distinguishes them is **who holds au
 **whether the situation is still recoverable**.
 
 - **[B1](#b1--degrade-the-ads-when-the-odd-cannot-be-held) is the first response** to a degrading ODD, and it is cooperative: the HPC stays in control and
-  the island only constrains it. [B1](#b1--degrade-the-ads-when-the-odd-cannot-be-held) therefore *requires a working HPC*.
+  the island only constrains it. [B1](#b1--degrade-the-ads-when-the-odd-cannot-be-held) therefore *requires a working HPC*. <mark>Its object is an
+  **operating domain**, not a speed: the island declares the current domain unsatisfiable and the HPC
+  moves to one it can meet. [B1](#b1--degrade-the-ads-when-the-odd-cannot-be-held) is also the only behaviour with an **upward** exit — the drive
+  continues, in a narrower domain — and the only one whose downward exit can land on any of the other
+  three.</mark>
 - **[B2](#b2--keep-the-vehicle-in-its-lane-after-loss-of-the-hpc) is what replaces [B1](#b1--degrade-the-ads-when-the-odd-cannot-be-held) when that requirement fails.** The intent is the same — buy time in a safe
   state rather than commit to a terminal manoeuvre — but the authority is inverted: the island now
   steers. [B2](#b2--keep-the-vehicle-in-its-lane-after-loss-of-the-hpc) is admissible only while the lane remains observable.
@@ -328,6 +460,23 @@ differ in precondition (a verified refuge against none), in minimum sensor rung 
 **0**), and in residual risk — a stop in a refuge and a stop in a running lane are not the same event,
 and the Part-4 HARA must carry them as two.</mark>
 
+<mark>**What takes over when [B1](#b1--degrade-the-ads-when-the-odd-cannot-be-held) runs out of time.**</mark> <mark>`T_odd` expiring is the most common way the
+island leaves [B1](#b1--degrade-the-ads-when-the-odd-cannot-be-held) downward, and the successor is **not** fixed. Which behaviour takes over is
+decided by what the island still *has* — never by what the HPC did wrong, because the island cannot
+always tell a non-compliant HPC from a dead one, and does not need to:</mark>
+
+| <mark>Condition at `T_odd` expiry</mark> | <mark>Takes over</mark> | <mark>Why</mark> |
+| :-- | :-- | :-- |
+| <mark>Sensing blackout — [`N17`](#62-island-safety-sensing) reports every exteroceptive source invalid</mark> | <mark>**[B4](#b4--emergency-stop-when-the-island-is-blind)**</mark> | <mark>Capability, not situation. Neither [B2](#b2--keep-the-vehicle-in-its-lane-after-loss-of-the-hpc) nor [B3](#b3--pull-over-if-the-odd-continues-to-fail) has a precondition left</mark> |
+| <mark>HPC unavailable — [`N2`](#61-supervision-state-and-fallback) reports liveness lost</mark> | <mark>**[B2](#b2--keep-the-vehicle-in-its-lane-after-loss-of-the-hpc)**</mark> | <mark>The executor of every [B1](#b1--degrade-the-ads-when-the-odd-cannot-be-held) rung is gone, and the corridor is still observable</mark> |
+| <mark>HPC alive, and either non-compliant or out of satisfiable domains</mark> | <mark>**[B3](#b3--pull-over-if-the-odd-continues-to-fail)**</mark> | <mark>The situation has not been recovered and will not be. The drive ends in a refuge</mark> |
+
+<mark>The tests are applied **in that order**, and the order is not arbitrary: it runs from capability loss
+to executor loss to situation loss, which is the order in which each removes the preconditions of the
+options below it. Applying them in any other order can select a behaviour whose precondition has
+already failed — choosing [B3](#b3--pull-over-if-the-odd-continues-to-fail) on a blackout, for instance, commits the island to a refuge it cannot
+verify.</mark>
+
 **The ladder is one-way, with a single exception.** [B1](#b1--degrade-the-ads-when-the-odd-cannot-be-held) → [B2](#b2--keep-the-vehicle-in-its-lane-after-loss-of-the-hpc) → [B3](#b3--pull-over-if-the-odd-continues-to-fail) are entered on worsening evidence and
 are not undone by wishful thinking. The one reversible edge is **[B2](#b2--keep-the-vehicle-in-its-lane-after-loss-of-the-hpc) → [B1](#b1--degrade-the-ads-when-the-odd-cannot-be-held)**: if the HPC comes back and
 proves itself over a confirmation window, the island hands authority back and returns to supervising
@@ -348,14 +497,15 @@ stateDiagram-v2
     direction LR
     [*] --> Nominal
     Nominal --> B1: ODD margin lost (H4 / N19 / N17)
-    B1 --> Nominal: envelope restored + hysteresis
+    B1 --> Nominal: ODD switch accepted, or envelope restored — + hysteresis
     Nominal --> B2: HPC lost (N2) and corridor valid
-    B1 --> B2: HPC lost during degradation
+    B1 --> B2: T_odd expired — HPC lost during the switch (N2)
     B2 --> B1: HPC re-qualified over the confirmation window
-    B1 --> B3: deadline exhausted, HPC non-compliant
-    B2 --> B3: T_hold expired, HPC still lost, refuge available
+    B1 --> B3: T_odd expired — HPC alive, non-compliant or out of domains
+    B2 --> B3: T_hold expired, HPC still lost — entered at v_entry
     B2 --> InLane: corridor lost, or no refuge
-    B3 --> InLane: abort ladder (§6.3)
+    B3 --> InLane: refuge search concludes — no refuge from either source
+    B3 --> B4: T_refuge expired — search inconclusive
     InLane --> SafeStop
     B3 --> SafeStop: standstill in refuge
     Nominal --> B4: all sensor and planning information lost
@@ -366,10 +516,10 @@ stateDiagram-v2
     B4 --> SafeStop: standstill where the vehicle stands
     SafeStop --> [*]
 
-    Nominal: ADS_ACTIVE — HPC drives, island supervises
-    B1: B1 — degrade, HPC still driving
-    B2: B2 — island lane-keep hold, bounded by T_hold
-    B3: B3 — pull over to refuge
+    Nominal: ADS_ACTIVE — HPC drives in an accepted ODD, island supervises
+    B1: B1 — ODD switch demanded and verified, HPC still driving, capped meanwhile
+    B2: B2 — island lane-keep hold, bounded by T_hold, v_hold decaying to v_entry
+    B3: B3 — pull over to refuge — H8 nominated, else island-detected, bounded by T_refuge
     InLane: In-lane stop (B2 authority, obstacle-aware)
     B4: B4 — blind emergency stop, no lateral authority — also entered on actuator fault (N9) or AEB (I19)
     SafeStop: SAFE_STOP — secured, gear P
@@ -397,9 +547,9 @@ belong on the island.
 
 | Behaviour | Detect | Decide | Act | Assure |
 | :-- | :-- | :-- | :-- | :-- |
-| **B1** | [`N19`](#64-odd-degradation-on-weather-and-visibility) ODD monitor · [`N17`](#62-island-safety-sensing) sensor health · [`N6`](#61-supervision-state-and-fallback)/[`N13`](#62-island-safety-sensing)/[`N14`](#62-island-safety-sensing) ingest · [`N16`](#62-island-safety-sensing) world model | [`N10`](#61-supervision-state-and-fallback) envelope · [`N3`](#61-supervision-state-and-fallback) state machine · [`N8`](#61-supervision-state-and-fallback) fault manager | [`N1`](#61-supervision-state-and-fallback)/[`H1`](#7-new-nodes-to-add-on-the-hpc) constraint egress → HPC re-plans | Compliance supervision in [`N2`](#61-supervision-state-and-fallback); [`N11`](#61-supervision-state-and-fallback) records the SOTIF event |
-| **B2** | [`N2`](#61-supervision-state-and-fallback) HPC supervisor (entry and recovery) · [`N13`](#62-island-safety-sensing) scan · [`N14`](#62-island-safety-sensing) vision · [`N16`](#62-island-safety-sensing) world model · [`H3`](#7-new-nodes-to-add-on-the-hpc) corridor | [`N3`](#61-supervision-state-and-fallback) state machine (hold budget, hand-back) · [`N5`](#61-supervision-state-and-fallback) corridor monitor · [`I8`](#41-migration-list) validator · [`N10`](#61-supervision-state-and-fallback) envelope | [`I13`](#41-migration-list) pure_pursuit + [`N7`](#61-supervision-state-and-fallback) planner → [`I1`](#41-migration-list) gate → [`I16`](#41-migration-list); [`I3`](#41-migration-list) switcher for hand-back | [`N9`](#61-supervision-state-and-fallback) actuator supervisor; [`I19`](#41-migration-list)/[`I20`](#41-migration-list) as independent last line |
-| **B3** | [`N16`](#62-island-safety-sensing) free space · [`N6`](#61-supervision-state-and-fallback) rear-corner radar · [`H8`](#7-new-nodes-to-add-on-the-hpc) refuge | [`N18`](#63-pull-over-mrm-after-hpc-loss) pull-over manager · [`I7`](#41-migration-list) mrm_handler · [`N3`](#61-supervision-state-and-fallback) | [`N7`](#61-supervision-state-and-fallback) trajectory → [`I13`](#41-migration-list) → [`I1`](#41-migration-list) → [`I16`](#41-migration-list); [`I5`](#41-migration-list) secures at standstill | [`N9`](#61-supervision-state-and-fallback); abort ladder to [B2](#b2--keep-the-vehicle-in-its-lane-after-loss-of-the-hpc) then [`I6`](#41-migration-list) |
+| **B1** | [`N19`](#64-odd-degradation-on-weather-and-visibility) ODD monitor · [`N17`](#62-island-safety-sensing) sensor health · [`N6`](#61-supervision-state-and-fallback)/[`N13`](#62-island-safety-sensing)/[`N14`](#62-island-safety-sensing) ingest · [`N16`](#62-island-safety-sensing) world model <mark>· [`H4`](#7-new-nodes-to-add-on-the-hpc) declared active domain</mark> | [`N10`](#61-supervision-state-and-fallback) envelope · [`N3`](#61-supervision-state-and-fallback) state machine <mark>(demand, `T_ack`/`T_odd`, takeover selection)</mark> · [`N8`](#61-supervision-state-and-fallback) fault manager | [`N1`](#61-supervision-state-and-fallback)/[`H1`](#7-new-nodes-to-add-on-the-hpc) constraint egress → <mark>HPC switches domain and re-plans</mark> | Compliance supervision in [`N2`](#61-supervision-state-and-fallback) <mark>and the two-part acceptance test in [`N19`](#64-odd-degradation-on-weather-and-visibility)</mark>; [`N11`](#61-supervision-state-and-fallback) records the SOTIF event |
+| **B2** | [`N2`](#61-supervision-state-and-fallback) HPC supervisor (entry and recovery) · [`N13`](#62-island-safety-sensing) scan · [`N14`](#62-island-safety-sensing) vision · [`N16`](#62-island-safety-sensing) world model · [`H3`](#7-new-nodes-to-add-on-the-hpc) corridor <mark>· [`N19`](#64-odd-degradation-on-weather-and-visibility) for the `v_max` term of `v_hold`</mark> | [`N3`](#61-supervision-state-and-fallback) state machine (hold budget, hand-back) · [`N5`](#61-supervision-state-and-fallback) corridor monitor · [`I8`](#41-migration-list) validator · [`N10`](#61-supervision-state-and-fallback) envelope <mark>· [`N7`](#61-supervision-state-and-fallback) owns the `v_hold` ramp</mark> | [`I13`](#41-migration-list) pure_pursuit + [`N7`](#61-supervision-state-and-fallback) planner → [`I1`](#41-migration-list) gate → [`I16`](#41-migration-list); [`I3`](#41-migration-list) switcher for hand-back | [`N9`](#61-supervision-state-and-fallback) actuator supervisor; [`I19`](#41-migration-list)/[`I20`](#41-migration-list) as independent last line |
+| **B3** | [`N16`](#62-island-safety-sensing) free space · [`N6`](#61-supervision-state-and-fallback) rear-corner radar · [`H8`](#7-new-nodes-to-add-on-the-hpc) refuge <mark>· [`N13`](#62-island-safety-sensing)/[`N14`](#62-island-safety-sensing)/[`N15`](#62-island-safety-sensing) for the island-detected refuge</mark> | [`N18`](#63-pull-over-mrm-after-hpc-loss) pull-over manager <mark>(both refuge sources, `T_refuge`)</mark> · [`I7`](#41-migration-list) mrm_handler · [`N3`](#61-supervision-state-and-fallback) | [`N7`](#61-supervision-state-and-fallback) trajectory → [`I13`](#41-migration-list) → [`I1`](#41-migration-list) → [`I16`](#41-migration-list); [`I5`](#41-migration-list) secures at standstill | [`N9`](#61-supervision-state-and-fallback); abort ladder to [B2](#b2--keep-the-vehicle-in-its-lane-after-loss-of-the-hpc) then [`I6`](#41-migration-list) |
 | <mark>**B4**</mark> | <mark>[`N17`](#62-island-safety-sensing) blackout declaration · [`N16`](#62-island-safety-sensing) all source-validity flags false · [`N9`](#61-supervision-state-and-fallback) actuator supervisor · [`I19`](#41-migration-list) AEB</mark> | <mark>[`N3`](#61-supervision-state-and-fallback) state machine (`EMERGENCY_STOP`, no exit) · [`N8`](#61-supervision-state-and-fallback) fault manager · [`I7`](#41-migration-list) mrm_handler</mark> | <mark>[`I6`](#41-migration-list) emergency stop → [`I1`](#41-migration-list) gate → [`I16`](#41-migration-list); [`I5`](#41-migration-list) secures</mark> | <mark>[`N4`](#61-supervision-state-and-fallback) proprioceptive ego state — the only assurance left; below the node path, the gate's built-in stop and the §8.5 FSI fault line</mark> |
 
 Every **Detect** cell above may additionally carry the optional [§3.5](#35-optional-enrichment-the-hpc-object-list) object digest from [`N20`](#62-island-safety-sensing).
@@ -1310,15 +1460,16 @@ in `SaftyIsland_ReferenceDesign.md`:
 | Graded reaction | Implemented by | Requires HPC alive? |
 | :-- | :-- | :-- |
 | 1. Notify & request self-recovery | Island → HPC constraint/veto message; HPC re-plans | **Yes** |
-| 2. Restrict speed / enlarge margins | `autoware_mrm_comfortable_stop_operator` (HPC) + island envelope limits | **Yes** |
-| 3a₀. Take authority — **lane-keep hold** ([B2](#b2--keep-the-vehicle-in-its-lane-after-loss-of-the-hpc)) | Island: fallback tier + `I13 pure_pursuit` on the corridor, held at `v_hold` for at most `T_hold` while awaiting HPC recovery | No |
+| <mark>1b. **Demand an ODD switch**</mark> | <mark>Island declares the current domain unsatisfiable; the HPC selects one it can meet and declares it through [`H4`](#7-new-nodes-to-add-on-the-hpc); the island verifies the declaration and then the behaviour (§6.4)</mark> | <mark>**Yes**</mark> |
+| 2. Restrict speed / enlarge margins | `autoware_mrm_comfortable_stop_operator` (HPC) + island envelope limits <mark>— held underneath step 1b for its duration</mark> | **Yes** |
+| 3a₀. Take authority — **lane-keep hold** ([B2](#b2--keep-the-vehicle-in-its-lane-after-loss-of-the-hpc)) | Island: fallback tier + `I13 pure_pursuit` on the corridor, <mark>decelerating along the `v_hold` ramp to `v_entry`</mark> for at most `T_hold` while awaiting HPC recovery | No |
 | 3a. Take authority — **obstacle-aware** in-lane stop | Island: fallback tier + `si_mrm_profile`, decelerating along the perceived corridor to a free-space target | No |
 | 3b′. Emergency braking on imminent collision | Island: `autoware_autonomous_emergency_braking` ([I19](#41-migration-list)) on island sensors | No |
 | <mark>3b. Take authority — **emergency stop** ([B4](#b4--emergency-stop-when-the-island-is-blind))</mark> | <mark>Island: `autoware_mrm_emergency_stop_operator` ([I6](#41-migration-list)), steering surrendered, no world model required</mark> | <mark>No</mark> |
 | 3c. Last resort | Island: gate built-in stop (`autoware_control_command_gate`) | No |
 | 4. Audit | Island `si_event_recorder` + HPC log store | No |
 
-Steps 1 and 2 are cooperative degradation; 3a₀–3c are island-autonomous. **The island must never depend
+Steps 1 <mark>to 2</mark> are cooperative degradation; 3a₀–3c are island-autonomous. **The island must never depend
 on step 2 succeeding before it can reach step 3.** Step 3a₀ is the only rung that can be *left upward*:
 if the HPC recovers and is confirmed healthy during the hold, authority returns to it and the ladder
 resets to step 1. Every rung below 3a₀ is terminal for the drive cycle.
@@ -1422,10 +1573,20 @@ work, and it stays on the HPC. So the split is:
 
 > **The HPC continuously nominates refuges. The island verifies and executes one.**
 
+<mark>That split holds wherever the HPC is there to nominate, and under [B3](#b3--pull-over-if-the-odd-continues-to-fail) it often is not: [B3](#b3--pull-over-if-the-odd-continues-to-fail) is
+reached from [B2](#b2--keep-the-vehicle-in-its-lane-after-loss-of-the-hpc) exactly when the HPC has been lost, and the buffered refuge set ages out like every
+other buffered input (§8.1). The island therefore carries a **second, weaker refuge source of its own**,
+used only when the first offers nothing — the full argument is in [§3.1](#b3--pull-over-if-the-odd-continues-to-fail). The
+split above is unchanged in the part that matters: **the island may now *find* a refuge, but it still
+may not *choose* one.** It takes the first lateral clearance that passes verification, and it compares
+no candidates for legality, because it has no map and no traffic law to compare them with.</mark>
+
 #### The refuge contract
 
 New HPC node [`H8`](#7-new-nodes-to-add-on-the-hpc) (§7) streams a rolling **pull-over refuge** that it has already validated against the
-map and traffic law. The island never invents a refuge; it only accepts, shifts within, or rejects one.
+map and traffic law. <mark>While one is on offer, the island only accepts, shifts within, or rejects it — it
+does not invent an alternative. It falls back on its own detection only when the contract below cannot
+be honoured at all, and what it then produces is an `EMERGENCY_ONLY` clearance, never a `LEGAL_STOP`.</mark>
 
 | Field | Meaning |
 | :-- | :-- |
@@ -1453,7 +1614,7 @@ That guarantee has a consequence worth stating plainly, because it links this fe
 
 | # | Node | Purpose | Tier | Rate |
 | :-- | :-- | :-- | :-- | :-- |
-| **N18** | `si_pull_over_manager` | Implements Autoware's **existing** `pull_over_manager` MRM slot — `OperateMrm` service server, `MrmBehaviorStatus` publisher — so `I7 mrm_handler` selects it natively with no new interface. Owns refuge go/no-go against [`N16`](#62-island-safety-sensing)'s live free space, longitudinal shifting within the window, the `pull_over_available` flag, and the abort ladder below. | [T1](#22-criticality-tiers-on-the-island) | 20 Hz |
+| **N18** | `si_pull_over_manager` | Implements Autoware's **existing** `pull_over_manager` MRM slot — `OperateMrm` service server, `MrmBehaviorStatus` publisher — so `I7 mrm_handler` selects it natively with no new interface. Owns refuge go/no-go against [`N16`](#62-island-safety-sensing)'s live free space, longitudinal shifting within the window, the `pull_over_available` flag, and the abort ladder below. <mark>Also owns the **island-detected refuge**: when [`H8`](#7-new-nodes-to-add-on-the-hpc) offers none, it searches [`N16`](#62-island-safety-sensing)'s free space for a lateral clearance wide enough and long enough to hold the vehicle, using [`N13`](#62-island-safety-sensing) 2D lidar, [`N14`](#62-island-safety-sensing) lane-edge geometry and [`N15`](#62-island-safety-sensing) ultrasonics, and emits it as a refuge with `legality = EMERGENCY_ONLY` and `surface_class = UNKNOWN`. The search is bounded by `T_refuge`, and its three outcomes are distinct: **found**, **positively none**, and **inconclusive** — only the last goes to [B4](#b4--emergency-stop-when-the-island-is-blind) (§3.1). `pull_over_available` is true if *either* source currently offers a refuge, and carries which one.</mark> | [T1](#22-criticality-tiers-on-the-island) | 20 Hz |
 | **N7** | `si_mrm_planner` *(extended)* | Previously emitted a longitudinal ramp only. Now emits a bounded `autoware_planning_msgs/Trajectory` (≤ 50 points) carrying **both** the lateral displacement path and its velocity profile, for in-lane stop or pull-over alike. Hard bounds on lateral acceleration, steering rate and jerk are applied here. | [T1](#22-criticality-tiers-on-the-island) | 50 Hz |
 
 Extending [`N7`](#61-supervision-state-and-fallback) to emit a standard `Trajectory` rather than adding a separate path planner is the
@@ -1480,6 +1641,8 @@ that makes it safe to attempt at all.
 | [`I19`](#41-migration-list) AEB fires | <mark>**Emergency stop** ([B4](#b4--emergency-stop-when-the-island-is-blind)), abandon the manoeuvre</mark> |
 | Actuator not responding ([`N9`](#61-supervision-state-and-fallback)) | <mark>**Emergency stop** ([B4](#b4--emergency-stop-when-the-island-is-blind))</mark> |
 | <mark>Sensing blackout ([`N17`](#62-island-safety-sensing)) — refuge can no longer be verified free</mark> | <mark>**Emergency stop** ([B4](#b4--emergency-stop-when-the-island-is-blind)); the in-lane stop is *not* available either, because it too needs a corridor</mark> |
+| <mark>Refuge search concludes: neither source offers a usable refuge</mark> | <mark>Abandon pull-over → **in-lane stop** — the corridor is still there to use</mark> |
+| <mark>`T_refuge` elapsed with the search still inconclusive</mark> | <mark>**Emergency stop** ([B4](#b4--emergency-stop-when-the-island-is-blind)). An inconclusive search is a capability statement, not a road statement</mark> |
 | Standstill reached, near field not clear | Hold, do not release; <mark>hazard lamps stay on — they were raised at entry</mark> |
 
 Every rung degrades toward something the island can definitely do. The manoeuvre never escalates in
@@ -1490,18 +1653,18 @@ requirement, and never adds one.**
 
 ```mermaid
 flowchart TB
-    R3["<b>RUNG 3 — pull over to the nominated refuge</b><br/>B3 authority · the only rung on which the island initiates lateral displacement<br/><i>needs: H8 refuge · N16 free space · N6 rear corner · N7 path · I13 tracking &nbsp;—&nbsp; sensor rung B</i>"]
+    R3["<b>RUNG 3 — pull over to a verified refuge</b><br/>B3 authority · the only rung on which the island initiates lateral displacement<br/><i>needs: a refuge — H8 nominated, else island-detected via N13/N14/N15 —<br/>plus N16 free space · N6 rear corner · N7 path · I13 tracking &nbsp;—&nbsp; sensor rung B</i>"]
     R2["<b>RUNG 2 — pull over, shifted longitudinally</b><br/>B3 authority · the same manoeuvre with less freedom in where it ends<br/><i>needs: a usable window inside entry_s…exit_s &nbsp;—&nbsp; sensor rung B</i>"]
     R1["<b>RUNG 1 — in-lane stop, obstacle-aware</b><br/>B2 authority and control law · no refuge, no lateral displacement<br/><i>needs: a corridor from any of three sources · N16 free space &nbsp;—&nbsp; sensor rung A</i>"]
     R0["<b>RUNG 0 — blind emergency stop (B4)</b><br/>brakes, declines to steer · stops where it stands · hazards on at entry<br/><i>needs: N4 proprioceptive ego state + the I16 actuation path &nbsp;—&nbsp; sensor rung 0</i>"]
     GATE["<i>below the ladder, and outside the ROS-node path by construction</i><br/>I1 gate built-in stop (§5.3 step 3c) · §8.5 FSI hardware fault line"]
 
     R3 -->|"refuge occupied, or narrower than needed"| R2
-    R2 -->|"no usable window remains"| R1
+    R2 -->|"search concludes: no usable window, and no refuge from either source"| R1
     R3 -->|"N6 rear corner: closing vehicle on the pull-over side"| R1
     R2 -->|"lateral path bounds violated, or steering not tracking"| R1
     R1 -->|"corridor lost — all three sources invalid or expired"| R0
-    R3 -.->|"N17 sensing blackout · I19 AEB · N9 actuator fault<br/>— from any rung, without passing through the rungs between"| R0
+    R3 -.->|"N17 sensing blackout · I19 AEB · N9 actuator fault · T_refuge elapsed with the search<br/>inconclusive — from any rung, without passing through the rungs between"| R0
     R2 -.-> R0
     R1 -.-> R0
     R0 -->|"N9: actuators still not tracking"| GATE
@@ -1585,7 +1748,7 @@ which sets stopping distance, which sets both the speed limit below and the refu
 
 | # | Node | Purpose | Tier | Rate |
 | :-- | :-- | :-- | :-- | :-- |
-| **N19** | `si_odd_monitor` | Environmental ODD verdict: visibility range estimate, precipitation class, surface-friction estimate, ambient-light class, and the resulting speed ceiling and ODD margin. Applies asymmetric hysteresis. Promoted from the phase-2 option noted in §6.1. | [T1s](#22-criticality-tiers-on-the-island) | 2–5 Hz |
+| **N19** | `si_odd_monitor` | Environmental ODD verdict: visibility range estimate, precipitation class, surface-friction estimate, ambient-light class, and the resulting speed ceiling and ODD margin. Applies asymmetric hysteresis. Promoted from the phase-2 option noted in §6.1. <mark>Also raises the **ODD switch demand** — `odd_satisfiable = false` with the failed dimension and the `T_odd` budget — and runs the two-part acceptance test on the answer: the domain [`H4`](#7-new-nodes-to-add-on-the-hpc) declares must lie inside the measured envelope, *and* the vehicle's measured behaviour must converge on that domain's bounds within `T_odd`. It declares `T_odd` per situation rather than as a constant, from the rate at which the margin is falling ([B1](#b1--degrade-the-ads-when-the-odd-cannot-be-held)). It also supplies the `v_max` term of [B2](#b2--keep-the-vehicle-in-its-lane-after-loss-of-the-hpc)'s `v_hold` ramp.</mark> | [T1s](#22-criticality-tiers-on-the-island) | 2–5 Hz |
 
 [`N17`](#62-island-safety-sensing) and [`N19`](#64-odd-degradation-on-weather-and-visibility) answer different questions and must not be merged:
 
@@ -1619,7 +1782,8 @@ are measured on the island, so the limit is defensible without trusting the HPC.
 | :-- | :-- | :-- | :-- |
 | Nominal | none | — | — |
 | **Marginal** | Notify. Publish the reduced verdict; the HPC re-plans conservatively | `OddVerdict` advisory + `SafetyEnvelopeCommand` mode `ALLOW` | — |
-| **Degraded** | Restrict. Hard speed cap from the law above; enlarge margins | `SafetyEnvelopeCommand` mode `CONSTRAIN`, `speed_limit = v_max` | 3 s to reach compliance |
+| <mark>**Unsatisfiable**</mark> | <mark>**Demand an ODD switch.** Declare the current domain unsatisfiable; require the HPC to move to one it can meet. The island names no target</mark> | <mark>`OddVerdict` with `odd_satisfiable = false`, the failed dimension, and the `T_odd` budget</mark> | <mark>`T_ack` = 2 s to declare a new domain or declare exhaustion; `T_odd` = 10 s to satisfy it</mark> |
+| **Degraded** | Restrict. Hard speed cap from the law above; enlarge margins <mark>— held underneath the switch, not instead of it</mark> | `SafetyEnvelopeCommand` mode `CONSTRAIN`, `speed_limit = v_max` | 3 s to reach compliance |
 | **Beyond ODD, HPC compliant** | Request MRM. Ask the HPC to pull over *while it still can* | mode `MRM` + refuge request | 10 s to begin, 60 s to complete |
 | **Beyond ODD, HPC non-compliant** | Take authority — island pull-over per §6.3 | [`I7`](#41-migration-list) → [`N18`](#63-pull-over-mrm-after-hpc-loss) | — |
 
@@ -1627,6 +1791,45 @@ are measured on the island, so the limit is defensible without trusting the HPC.
 whether actual speed and behaviour converge on it within the declared deadline. *Non-compliance is
 itself a fault*, raised to [`N8`](#61-supervision-state-and-fallback) — and it is a fault the island can detect without any HPC cooperation,
 using only vehicle status it already receives.
+
+#### The ODD switch demand, and what the island verifies
+
+<mark>The **Unsatisfiable** rung is the one that changes the character of the ladder. Every other rung
+constrains a *quantity*; this one demands a change of *domain*. The vehicle is being driven under a set
+of assumptions — sensing range, friction, lighting, road class — which the island now measures to be
+false, and the remedy is not to drive the same way more slowly but to drive under a different set of
+assumptions that the measurements do support.</mark>
+
+<mark>The island does not name that set. It holds no catalogue of the HPC's operating domains, no model of
+which L4 behaviours each of them admits, and no means of choosing between them — all three are planning,
+which [R4](#21-partitioning-rules) and [R5](#21-partitioning-rules) keep off the island. What it holds
+is the *measurement*, and a measurement is enough to reject an answer without being able to produce
+one:</mark>
+
+| <mark>Step</mark> | <mark>Who</mark> | <mark>What crosses the link</mark> |
+| :-- | :-- | :-- |
+| <mark>1. Declare unsatisfiable</mark> | <mark>island, [`N19`](#64-odd-degradation-on-weather-and-visibility)</mark> | <mark>`OddVerdict.odd_satisfiable = false` + the measured envelope + the failed dimension + the `T_odd` budget</mark> |
+| <mark>2. Select a domain</mark> | <mark>HPC</mark> | <mark>nothing — this is planning, and it happens entirely on the HPC</mark> |
+| <mark>3. Declare the new active domain</mark> | <mark>HPC, [`H4`](#7-new-nodes-to-add-on-the-hpc)</mark> | <mark>`OddStatus.active_odd` + its bounds + `odd_switch_state`, within `T_ack`</mark> |
+| <mark>4. Verify the declaration</mark> | <mark>island, [`N19`](#64-odd-degradation-on-weather-and-visibility)</mark> | <mark>nothing — the bounds are compared against the island's own envelope</mark> |
+| <mark>5. Verify the behaviour</mark> | <mark>island, [`N2`](#61-supervision-state-and-fallback)/[`N19`](#64-odd-degradation-on-weather-and-visibility)</mark> | <mark>nothing — measured speed, acceleration and curvature are compared against the declared bounds, within `T_odd`</mark> |
+| <mark>6. Accept, and release the cap</mark> | <mark>island, [`N3`](#61-supervision-state-and-fallback)</mark> | <mark>`SafetyEnvelopeCommand` mode returns to `ALLOW`; `OddVerdict` carries the accepted domain</mark> |
+
+<mark>**Steps 4 and 5 are separate on purpose.** A declaration the island can check against its own
+measurements catches an HPC that reports a domain it *could not* be in. Checking the vehicle's
+behaviour afterwards catches an HPC that reports a domain it *is not* in — a different failure, and the
+more dangerous one, because the declaration is plausible. A domain that passes step 4 and fails step 5
+is recorded by [`N11`](#61-supervision-state-and-fallback) as a SOTIF event under the same rule as verdict disagreement below:
+it is evidence about the HPC that no other mechanism produces.</mark>
+
+<mark>**The cap does not come off for the declaration.** It comes off for the behaviour. Between steps 1 and
+6 the vehicle is held at `v_max` by the `CONSTRAIN` rung regardless of what the HPC has declared, so a
+false declaration buys the HPC no speed — only time, and only `T_odd` of it.</mark>
+
+<mark>**Exhaustion is a valid answer.** If the HPC declares at step 3 that none of its domains is
+satisfiable, the ladder moves straight to **Request MRM** — an HPC-executed pull-over, with the map and
+the traffic law available to it, which is strictly better than the island-executed one under
+[B3](#b3--pull-over-if-the-odd-continues-to-fail). `T_odd` is not run out on an HPC that answered honestly.</mark>
 
 #### Hysteresis, and why it is asymmetric
 
@@ -1668,11 +1871,11 @@ Without them, "connect Autoware to the island" means publishing the full ROS gra
 | **H1** | `si_bridge_hpc` | In-house E2E egress/ingress counterpart of [N1](#61-supervision-state-and-fallback) (§8.4). Wraps each safety payload with Data ID, sequence counter, CRC, length and gPTP timestamp; enforces the publication rate; is the *only* HPC node permitted to write to the island link. | per-interface |
 | **H2** | `hpc_capability_reporter` | Condenses `diagnostic_graph_aggregator` / `hazard_status_converter` / `pipeline_latency_monitor` output into a **fixed-size capability vector** (perception OK, localization OK, planning OK, per-pipeline latency margin, confidence floor) plus a self-test summary. Replaces free-form diagnostics on the link. | 10 Hz |
 | **H3** | `hpc_corridor_publisher` | Emits a compact drivable-corridor strip (left/right boundary polylines, fixed point count) around the current trajectory, derived from the Lanelet2 map. This is the map, reduced to what the island can hold — enabling [N5](#61-supervision-state-and-fallback) and [N7](#61-supervision-state-and-fallback) without shipping the map. | 10 Hz |
-| **H4** | `hpc_odd_reporter` | ODD and geofence validity, weather/visibility class, unmapped-area and roadworks flags — as a small enumerated status, not raw sensor data. | 10 Hz |
+| **H4** | `hpc_odd_reporter` | ODD and geofence validity, weather/visibility class, unmapped-area and roadworks flags — as a small enumerated status, not raw sensor data. <mark>Also carries the HPC's **declared active operating domain** and its bounds — speed ceiling, required sensing range, assumed friction — plus an `odd_switch_state` enum (`STEADY` / `SWITCHING` / `EXHAUSTED`). This is the HPC's half of the [B1](#b1--degrade-the-ads-when-the-odd-cannot-be-held) exchange: the island demands a switch, and this is the node that answers within `T_ack`. The bounds are what the island verifies against its own envelope, so they must be the domain's *declared* limits, not the vehicle's current state.</mark> | 10 Hz |
 | **H5** | `hpc_trajectory_conditioner` | Resamples and bounds the planned trajectory to the island's fixed-capacity message (**250 points**, as already enforced in the nano-ros port), guarantees monotonic timestamps, fills per-point velocity/acceleration, and rejects malformed trajectories *before* they are transmitted. | 10 Hz |
 | **H6** | `hpc_island_state_client` | Subscribes to island state and MRM state; republishes into `/system/fail_safe/mrm_state` and the AD API so that operator UI, logging and `command_mode_decider` see the island's verdict. Closes the loop for graded reaction steps 1–2. | 10 Hz |
 | **H7** | `hpc_heartbeat` | Deterministic, minimal heartbeat with a rolling self-test result. Kept separate from [H2](#7-new-nodes-to-add-on-the-hpc) so that it can be given the highest RT priority and the shortest code path. | 50–100 Hz |
-| **H8** | `hpc_refuge_publisher` | Streams the rolling, map-validated and law-checked **pull-over refuge** defined in §6.3, plus the explicit "no refuge available" declaration when it cannot honour the coverage guarantee. This is the node that makes an island pull-over possible at all. | 2 Hz |
+| **H8** | `hpc_refuge_publisher` | Streams the rolling, map-validated and law-checked **pull-over refuge** defined in §6.3, plus the explicit "no refuge available" declaration when it cannot honour the coverage guarantee. This is the node that makes <mark>a *lawful*</mark> island pull-over possible at all <mark>— the island's own detection ([`N18`](#63-pull-over-mrm-after-hpc-loss)) can find clear space without it, but only as an `EMERGENCY_ONLY` stop</mark>. | 2 Hz |
 | **H9** | `hpc_shadow_control_monitor` *(optional)* | Runs the same controller configuration on the HPC and compares against the island's echoed command; flags divergence. **Field-monitoring and validation only — no safety authority.** | 50 Hz |
 
 ---
@@ -1692,7 +1895,7 @@ end-to-end protected (§8.4) and rate-declared.
 | Acceleration (reference) | `/localization/acceleration` | `geometry_msgs/AccelWithCovarianceStamped` | 50 Hz | 60 ms | SI-E2E/A |
 | Operation mode state | `/api/operation_mode/state` | `autoware_adapi_v1_msgs/OperationModeState` | 10 Hz + on change | 300 ms | SI-E2E/A |
 | Capability vector | `/si/in/capability` | *new* `HpcCapability` | 10 Hz | 300 ms | SI-E2E/B |
-| ODD status | `/si/in/odd_status` | *new* `OddStatus` | 10 Hz | 300 ms | SI-E2E/B |
+| ODD status <mark>+ declared active domain</mark> | `/si/in/odd_status` | *new* `OddStatus` <mark>(geofence validity, weather class, roadworks flags, **`active_odd` with its speed / sensing-range / friction bounds**, `odd_switch_state`)</mark> | 10 Hz | 300 ms | SI-E2E/B |
 | Heartbeat + self-test | `/si/in/heartbeat` | *new* `HpcHeartbeat` | 100 Hz | **20 ms** | SI-E2E/B |
 | **Pull-over refuge** | `/si/in/refuge` | *new* `PullOverRefuge` | 2 Hz | 2 s | SI-E2E/A |
 | Auxiliary commands | `/control/command/{gear,turn_indicators,hazard_lights}_cmd` | `autoware_vehicle_msgs/*` | 10 Hz | 300 ms | SI-E2E/A |
@@ -1704,9 +1907,9 @@ Under [D7](#1-inputs-already-fixed-by-the-wg), **every input on this table is no
 | :-- | :-- |
 | Kinematic state, acceleration | [`N4`](#61-supervision-state-and-fallback) dead reckoning — the island cross-checks the HPC estimate against it and, on divergence or loss, uses [N4](#61-supervision-state-and-fallback) alone |
 | Drivable corridor | [`N14`](#62-island-safety-sensing) perceived lane boundaries, then a heading/yaw-rate tube |
-| Pull-over refuge | The last refuge whose `validity_distance_m` still covers the stopping distance; then in-lane stop |
+| Pull-over refuge | The last refuge whose `validity_distance_m` still covers the stopping distance; <mark>then [`N18`](#63-pull-over-mrm-after-hpc-loss)'s **island-detected** `EMERGENCY_ONLY` clearance, searched for at most `T_refuge`</mark>; then in-lane stop |
 | Trajectory | The buffered last-valid trajectory, then [`N7`](#61-supervision-state-and-fallback)'s generated MRM profile |
-| Capability vector, ODD status | [`N2`](#61-supervision-state-and-fallback) liveness verdict and [`N17`](#62-island-safety-sensing) island sensor health |
+| Capability vector, ODD status | [`N2`](#61-supervision-state-and-fallback) liveness verdict and [`N17`](#62-island-safety-sensing) island sensor health. <mark>A silent `active_odd` is not a satisfied one: silence past `T_ack` is exactly the [B1](#b1--degrade-the-ads-when-the-odd-cannot-be-held) timeout, and escalates by §3.2's takeover rule rather than being substituted for</mark> |
 | Object list *(optional)* | [`N16`](#62-island-safety-sensing)'s own perceived obstacles; then nothing at all. It is the one row whose substitute is *absence* — [§3.5](#35-optional-enrichment-the-hpc-object-list) is written so that losing it costs information, not capability |
 
 That is the mechanism that lets [I9](#41-migration-list)–[I13](#41-migration-list), [I19](#41-migration-list) and [I20](#41-migration-list) keep running after HPC loss. **No row on this table
@@ -1716,11 +1919,11 @@ is a hard dependency of the safety core** — and the last row is not a dependen
 
 | Signal | Topic | Type | Rate |
 | :-- | :-- | :-- | :-- |
-| Island safety state | `/si/out/state` | *new* `IslandState` (mode — including `LANE_KEEP_HOLD` for [B2](#b2--keep-the-vehicle-in-its-lane-after-loss-of-the-hpc) <mark>and `EMERGENCY_STOP` for [B4](#b4--emergency-stop-when-the-island-is-blind)</mark> — fault code, authority holder, corridor source in use <mark>*or the blackout flag when there is none*</mark>, lateral deviation, remaining hold budget `T_hold`) | 50 Hz |
+| Island safety state | `/si/out/state` | *new* `IslandState` (mode — including `LANE_KEEP_HOLD` for [B2](#b2--keep-the-vehicle-in-its-lane-after-loss-of-the-hpc) <mark>and `EMERGENCY_STOP` for [B4](#b4--emergency-stop-when-the-island-is-blind)</mark> — fault code, authority holder, corridor source in use <mark>*or the blackout flag when there is none*</mark>, lateral deviation, remaining hold budget `T_hold` <mark>, the current `v_hold` and the `v_entry` the ramp is aimed at</mark>) | 50 Hz |
 | Safety world state | `/si/out/safety_world` | *new* `SafetyWorldState` (nearest in-path obstacle range and range-rate, TTC, free-space distance, perceived corridor, per-sensor validity) | 20 Hz |
 | Island sensor health | `/si/out/sensor_health` | *new* `IslandSensorHealth` (per-sensor availability, blockage, degradation cause) | 5 Hz |
-| **Island ODD verdict** | `/si/out/odd_verdict` | *new* `OddVerdict` (visibility range, precipitation class, friction estimate, ambient light, derived `v_max`, ODD margin) | 2–5 Hz |
-| **Fallback availability** | `/si/out/fallback_availability` | *new* `FallbackAvailability` (`pull_over_available`, reason, distance to next refuge) | 2 Hz |
+| **Island ODD verdict** <mark>+ switch demand</mark> | `/si/out/odd_verdict` | *new* `OddVerdict` (visibility range, precipitation class, friction estimate, ambient light, derived `v_max`, ODD margin <mark>, **`odd_satisfiable`**, the failed ODD dimension, the remaining `T_odd` budget, and the accepted domain once there is one</mark>) | 2–5 Hz |
+| **Fallback availability** | `/si/out/fallback_availability` | *new* `FallbackAvailability` (`pull_over_available`, reason, distance to next refuge <mark>, and `refuge_source` — `HPC_NOMINATED` or `ISLAND_DETECTED` — so that the HPC and the operator can tell a lawful refuge from a clearance</mark>) | 2 Hz |
 | MRM state | `/system/fail_safe/mrm_state` | `autoware_adapi_v1_msgs/MrmState` | 10 Hz + on change |
 | Constraint / veto vector | `/si/out/constraints` | *new* `SafetyEnvelopeCommand` (accel limit, curvature limit, speed limit, mode: ALLOW / CONSTRAIN / MRM) | 50 Hz |
 | Executed control command (echo) | `/control/command/control_cmd` | `autoware_control_msgs/Control` | 50 Hz |
@@ -2354,9 +2557,13 @@ escalates through the fault manager and the state machine, never straight to the
 
 ```mermaid
 flowchart TB
-    START(["MRM requested<br/>I7 mrm_handler<br/>(B1 exhausted, or B2 T_hold expired)"]) --> AVAIL{"N18: pull_over_available?<br/>refuge buffered and<br/>covers stopping distance"}
-    AVAIL -->|no| INLANE["IN-LANE STOP<br/>N7 fixed decel ramp<br/>along buffered trajectory"]
+    START(["MRM requested<br/>I7 mrm_handler<br/>(B1 T_odd expired, or B2 T_hold expired)"]) --> AVAIL{"N18: H8 refuge available?<br/>buffered, fresh, and<br/>covers stopping distance"}
     AVAIL -->|yes| VERIFY{"N18: refuge free?<br/>check against N16<br/>free space and width"}
+    AVAIL -->|no| SEARCH{"N18: island-detected refuge?<br/>search N16 free space with<br/>N13 / N14 / N15<br/>bounded by T_refuge"}
+    SEARCH -->|"found — EMERGENCY_ONLY"| VERIFY
+    SEARCH -->|"positively none"| INLANE
+    SEARCH -->|"T_refuge elapsed,<br/>still inconclusive"| ESTOP
+    INLANE["IN-LANE STOP<br/>N7 fixed decel ramp<br/>along buffered trajectory"]
     VERIFY -->|occupied| SHIFT{"shift within<br/>entry_s to exit_s?"}
     SHIFT -->|no window| INLANE
     SHIFT -->|yes| VERIFY
@@ -2382,7 +2589,7 @@ flowchart TB
     classDef warn fill:#f9eddc,stroke:#9a5b00,stroke-width:2px,color:#101010;
     classDef bad fill:#f7e4e2,stroke:#a8231c,stroke-width:2px,color:#101010;
     class START,SIGNAL,PLAN,TRACK ok;
-    class AVAIL,VERIFY,SHIFT,REAR,MON,NEAR dec;
+    class AVAIL,SEARCH,VERIFY,SHIFT,REAR,MON,NEAR dec;
     class INLANE,HOLD warn;
     class ESTOP bad;
     class DONE ok;
@@ -2395,6 +2602,14 @@ The manoeuvre never escalates in complexity under fault — which is what makes 
 sensing blackout removes the *precondition* of every box above it at once, so it short-circuits the
 ladder rather than descending it.</mark>
 
+<mark>The `SEARCH` box is where the island produces a stopping place of its own rather than verifying one,
+and its three outcomes are not interchangeable. **Found** rejoins the ordinary path at `VERIFY` — an
+island-detected clearance is verified free exactly as a nominated refuge is, because provenance changes
+what may be *claimed* about a refuge, never what must be *checked*. **Positively none** descends one
+rung to the in-lane stop, which still has a corridor. **Inconclusive** is the only one that reaches
+[B4](#b4--emergency-stop-when-the-island-is-blind), and it does so for the same reason the blackout edge
+does: a search that cannot conclude is a statement about the island's own capability.</mark>
+
 ### 10.6 ODD degradation ladder
 
 ```mermaid
@@ -2405,12 +2620,17 @@ stateDiagram-v2
     Nominal --> Marginal: visibility or friction<br/>margin falling<br/>(2 s evidence)
     Marginal --> Nominal: clear 30 s<br/>AND H4 agrees
 
+    Marginal --> SwitchDemanded: current ODD<br/>no longer satisfiable
+    SwitchDemanded --> Nominal: new domain declared,<br/>verified and held<br/>(both acceptance tests)
+    SwitchDemanded --> Degraded: cap applied while<br/>the switch is negotiated
+
     Marginal --> Degraded: v_max below<br/>current speed
     Degraded --> Marginal: clear 30 s<br/>AND H4 agrees
 
-    Degraded --> RequestMRM: beyond ODD
+    Degraded --> RequestMRM: beyond ODD,<br/>or HPC declares<br/>every domain exhausted
     RequestMRM --> Degraded: recovered<br/>before deadline
 
+    SwitchDemanded --> IslandAuthority: T_odd expired —<br/>no accepted domain
     RequestMRM --> IslandAuthority: HPC did not begin<br/>within 10 s<br/>or complete within 60 s
     IslandAuthority --> [*]: island pull-over<br/>per 6.3
 
@@ -2419,6 +2639,14 @@ stateDiagram-v2
         OddVerdict advisory
         SafetyEnvelopeCommand = ALLOW
         HPC re-plans conservatively
+    end note
+
+    note right of SwitchDemanded
+        DEMAND AN ODD SWITCH
+        odd_satisfiable = false + failed dimension
+        island names no target domain
+        T_ack 2 s to declare, T_odd 10 s to be in it
+        the cap stays on throughout
     end note
 
     note right of Degraded
@@ -2443,9 +2671,16 @@ stateDiagram-v2
 ```
 
 Time runs in seconds here, not milliseconds. The escalation is **deliberately reluctant**: the island
-gives the HPC three chances to handle its own ODD exit, because a planned pull-over with map knowledge
+gives the HPC <mark>four</mark> chances to handle its own ODD exit, because a planned pull-over with map knowledge
 beats the island's geometric one every time. Only non-compliance — which the island detects from
 vehicle status alone, needing no HPC cooperation — moves authority.
+
+<mark>`SwitchDemanded` is the rung that carries the drive forward rather than down. Every other edge in this
+diagram either holds the vehicle where it is or moves it closer to a stop; the edge from
+`SwitchDemanded` back to `Nominal` is the one that returns the vehicle to normal L4 operation — in a
+narrower domain than it left. Note that it returns to `Nominal` and not to `Marginal`: once a domain has
+been declared, verified and held, the vehicle is no longer operating outside its envelope. The envelope
+changed.</mark>
 
 
 ---
@@ -2511,7 +2746,11 @@ These change the allocation and should be settled before Part 2.
    under a fallback controller with a narrow ODD. The starting proposal is **2–5 s**, scaled down when
    the corridor comes from [`N14`](#62-island-safety-sensing) rather than [`H3`](#7-new-nodes-to-add-on-the-hpc) and set to zero on the heading tube.
    *(b)* `v_hold` — the constrained speed held during [B2](#b2--keep-the-vehicle-in-its-lane-after-loss-of-the-hpc), from the §6.4 speed law evaluated against the
-   *island's* ODD, not the vehicle's.
+   *island's* ODD, not the vehicle's. <mark>Now a **ramp** rather than a constant (§3.1): the open numbers are
+   the `v_exit(t)` decay shape — linear in time, linear in remaining `T_hold`, or a constant-deceleration
+   profile — and `v_entry`, the speed the ramp must land on at `T_hold`. A ramp that is too aggressive
+   throws away the hold's whole purpose by stopping the vehicle before the HPC has had its window; one
+   that is too gentle leaves [B3](#b3--pull-over-if-the-odd-continues-to-fail) to begin with a deceleration it should have inherited.</mark>
    *(c)* The **recovery confirmation window** — how long a returned HPC must publish valid, in-envelope
    trajectories before [`N2`](#61-supervision-state-and-fallback) will qualify it. It must be long enough that a crashed-and-restarted HPC
    cannot re-acquire authority on its first plausible message.
@@ -2558,6 +2797,44 @@ These change the allocation and should be settled before Part 2.
    *nuisance* braking, never a missed hazard. If the WG judges nuisance braking at speed to be a hazard
    in its own right, the row moves to SI-E2E/A. This is the sharpest of the four questions, and it is
    the one that tests whether the monotone-conservatism argument is believed.
+17. <mark>**The ODD switch exchange ([B1](#b1--degrade-the-ads-when-the-odd-cannot-be-held), §6.4).** [B1](#b1--degrade-the-ads-when-the-odd-cannot-be-held) is now a negotiation rather than a
+   constraint, and four things about it are unset.
+   *(a)* `T_ack` and `T_odd` — **2 s** to declare a new active domain, **10 s** to be measurably in it,
+   are starting proposals only. `T_odd` is additionally bounded from above by `t_margin − t_pullover`
+   (§3.1), so what the WG is really fixing is a *ceiling* and a default, not a single number.
+   *(b)* **Who owns the ODD catalogue.** The design says the HPC does, and that the island never names a
+   target domain — it only rejects answers. That keeps planning off the island ([R4](#21-partitioning-rules),
+   [R5](#21-partitioning-rules)) but means the island cannot tell *no satisfiable domain exists* from
+   *the HPC failed to find one*. Both route to [B3](#b3--pull-over-if-the-odd-continues-to-fail), so nothing unsafe follows; what is lost is
+   diagnostic resolution in the field data.
+   *(c)* **What `active_odd`'s bounds must contain** for the island's acceptance test to be meaningful.
+   Speed ceiling, required sensing range and assumed friction are proposed because the island measures
+   all three. Any bound the island cannot measure is one it cannot verify, and belongs in the message
+   only as recorded evidence.
+   *(d)* The policy question: **may the vehicle switch domains more than once in a drive cycle?** The
+   design does not forbid it, and repeated narrowing is the natural behaviour in worsening weather. The
+   conservative alternative — one switch, then [B3](#b3--pull-over-if-the-odd-continues-to-fail) — is easier to argue and materially less
+   useful.</mark>
+18. <mark>**The island-detected refuge and `T_refuge` ([B3](#b3--pull-over-if-the-odd-continues-to-fail), §6.3).** The island now carries a second
+   refuge source, which is the first time it produces a stopping *place* rather than verifying one.
+   *(a)* `T_refuge` — **5 s** is proposed, with a distance-travelled-searching cap alongside it for the
+   reason decision 15 gives. It is bounded below by how long the sensors need to establish a clearance
+   with confidence, and above by the speed the vehicle is still carrying while it searches.
+   *(b)* **The clearance criteria** — minimum width, minimum length, maximum lateral displacement,
+   and what surface evidence (if any) is required. The island cannot classify a surface, so
+   `surface_class = UNKNOWN` is proposed, which means the criteria must be geometric alone.
+   *(c)* **Is an `EMERGENCY_ONLY` clearance acceptable at all?** This is the real question. The island
+   cannot tell a hard shoulder from a cycle lane, a bus stop or a driveway, so admitting the source
+   means accepting an unlawful stopping place in preference to a stop in a live running lane. The
+   design says yes, second in priority and never displacing a nominated refuge, on the ground that a
+   stopped vehicle in a running lane is the worse outcome. A WG that disagrees should say so, and the
+   consequence is that [B3](#b3--pull-over-if-the-odd-continues-to-fail) degenerates to the in-lane stop whenever [`H8`](#7-new-nodes-to-add-on-the-hpc) is silent.
+   *(d)* **Inconclusive versus none.** The design distinguishes a search that *positively determines*
+   no refuge exists — which abandons to the in-lane stop, corridor still in hand — from one that runs
+   out of `T_refuge` *without a determination*, which goes to [B4](#b4--emergency-stop-when-the-island-is-blind). The distinction is load-bearing
+   (§3.1) and it must be implementable: [`N18`](#63-pull-over-mrm-after-hpc-loss) has to be able to say which of the two it
+   reached, and a WG that judges that undecidable in practice collapses both to [B4](#b4--emergency-stop-when-the-island-is-blind) and should say
+   so explicitly.</mark>
 
 ---
 

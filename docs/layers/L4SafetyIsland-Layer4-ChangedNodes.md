@@ -1,6 +1,6 @@
 # L4 Safety Island — the Autoware Node Diagram, Redrawn
 
-**Companion to [ArchitectureMain.pdf](../ArchitectureMain.pdf), the Autoware node diagram.** Derived from design version 20260912.
+**Companion to [ArchitectureMain.pdf](../ArchitectureMain.pdf), the Autoware node diagram.** Derived from design version 20260918.
 This file and its diagram add to the design document; they do not modify it.
 
 [ArchitectureMain.pdf](../ArchitectureMain.pdf) is the picture the WG already has in its head: every Autoware node, coloured by
@@ -63,6 +63,13 @@ use this one for the allocation argument.
    single horizontal lane at the bottom of the upper band and into `H1`, then the switch, then `N1`.
    That lane *is* the §8.1 interface table. Eleven signals in, nine out, and §8.1 records an island-local
    substitute for every inbound row.
+
+   **One pair of those signals is a round trip, and it is the only one.** `/si/out/odd_verdict` carries
+   the island's ODD switch *demand* — `odd_satisfiable = false`, the dimension that failed, and the
+   `T_odd` budget — and `/si/in/odd_status` carries the HPC's *answer*: the operating domain it has
+   declared active, with the bounds the island then verifies against its own measurements. Every other
+   row on the lane is one-way telemetry. This one is B1's negotiation (§3.1, §6.4), and it is drawn on
+   both lane labels because reading either half alone makes it look like telemetry too.
 3. **The edge that no longer exists.** In the original, `vehicle_cmd_gate → raw_vehicle_cmd_converter →
    vehicle_interface →` the vehicle is a short chain inside one ECU. It is drawn here as a grey ghost
    with a cross through it. After the island there is no path from the HPC to the actuators that does
