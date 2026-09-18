@@ -520,9 +520,9 @@ decided; phase 4 is where it is justified node by node; phase 5 is what the isla
 
 Each phase is reproduced **whole, sideways, on its own page**, so that nothing is cropped and each
 step of the argument is a single picture rather than a pair to be assembled by eye. Every phase is
-also available at full size in `layers/L4SafetyIsland-Layers.pdf`.
+also available at full size in [layers/L4SafetyIsland-Layers.pdf](layers/L4SafetyIsland-Layers.pdf).
 
-Colour is the **Autoware stack** a node belongs to, taken from the legend of `ArchitectureMain.pdf`,
+Colour is the **Autoware stack** a node belongs to, taken from the legend of [ArchitectureMain.pdf](ArchitectureMain.pdf),
 and it means the same thing on all five. What changes between phases is only how far the picture is
 zoomed and — from phase 3 onward — which ECU each box runs on. The five diagrams follow in the order
 of the table above.
@@ -1169,7 +1169,7 @@ flowchart LR
     class HPCOFF,FSI2,ISEN3,ACT3 vehc;
 ```
 
-All five are built from `layers/` (`make` there, or `latexmk -pdf` per file); `layers/L4SafetyIsland-Layers.pdf`
+All five are built from `layers/` (`make` there, or `latexmk -pdf` per file); [layers/L4SafetyIsland-Layers.pdf](layers/L4SafetyIsland-Layers.pdf)
 collects them onto uniform landscape pages for presentation, and `layers/L4SafetyIsland-Layers.md`
 records the drawing conventions.
 
