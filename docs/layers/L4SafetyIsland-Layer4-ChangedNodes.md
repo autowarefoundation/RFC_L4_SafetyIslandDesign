@@ -1,23 +1,23 @@
 # L4 Safety Island — the Autoware Node Diagram, Redrawn
 
-**Companion to `ArchitectureMain.pdf`, the Autoware node diagram.** Derived from design version 20260912.
+**Companion to [ArchitectureMain.pdf](../ArchitectureMain.pdf), the Autoware node diagram.** Derived from design version 20260912.
 This file and its diagram add to the design document; they do not modify it.
 
-`ArchitectureMain.pdf` is the picture the WG already has in its head: every Autoware node, coloured by
+[ArchitectureMain.pdf](../ArchitectureMain.pdf) is the picture the WG already has in its head: every Autoware node, coloured by
 stack, wired by topic. This diagram is **that picture with only the changed parts opened up**, drawn in
 the same visual language, so that the change can be read off rather than reconstructed.
 
-It is **phase 4** of the five-phase series in this folder (`L4SafetyIsland-Layers.md`): phase 3 draws both ECUs with one box per
+It is **phase 4** of the five-phase series in this folder ([L4SafetyIsland-Layers.md](L4SafetyIsland-Layers.md)): phase 3 draws both ECUs with one box per
 stack, phase 5 draws the whole island node by node, and this one sits between them — node level for
 what the island changes, phase-3 level for everything it leaves alone.
 
 | File | What it is |
 | :-- | :-- |
-| `L4SafetyIsland-Layer4-ChangedNodes.pdf` | The diagram, vector, one page. Zoom in; it is drawn for A2 or screen |
-| `L4SafetyIsland-Layer4-ChangedNodes.png` | The same, rasterised, for embedding |
+| [L4SafetyIsland-Layer4-ChangedNodes.pdf](L4SafetyIsland-Layer4-ChangedNodes.pdf) | The diagram, vector, one page. Zoom in; it is drawn for A2 or screen |
+| [L4SafetyIsland-Layer4-ChangedNodes.png](L4SafetyIsland-Layer4-ChangedNodes.png) | The same, rasterised, for embedding |
 | `L4SafetyIsland-Layer4-ChangedNodes.tex` | TikZ source. `latexmk -pdf L4SafetyIsland-Layer4-ChangedNodes.tex` |
 | this file | What changed, node by node, with the section each row comes from |
-| `../messageflow/` | **Companion.** The same 37 island nodes coloured by execution partition, with every edge catalogued |
+| [../messageflow/](../messageflow/) | **Companion.** The same 37 island nodes coloured by execution partition, with every edge catalogued |
 
 ![Autoware with an L4 Safety Island](L4SafetyIsland-Layer4-ChangedNodes.png)
 
@@ -29,7 +29,7 @@ Four things are encoded, and they are deliberately independent of each other.
 
 | Encoding | Means |
 | :-- | :-- |
-| **Colour** | the Autoware **stack** — exactly the palette of `ArchitectureMain.pdf`'s own legend |
+| **Colour** | the Autoware **stack** — exactly the palette of [ArchitectureMain.pdf](../ArchitectureMain.pdf)'s own legend |
 | **Band** | the **ECU** it executes on — HPC above, Safety Island below |
 | **Tag** | what **happened** to it — `MIGRATED`, `NEW`, `RE-SOURCED`, or the grey ghost for what left |
 | **Box rule** | **heavy** = a whole stack, unchanged, drawn at phase-3 level; **thin** = a single node, opened up because it changed |
@@ -45,10 +45,10 @@ the lower band**, and that the island has grown small versions of the purple, bl
 stacks alongside it.
 
 Two additions to the original palette are flagged with `*` in the legend: **Map**, because
-`ArchitectureMain.pdf` does not draw the map stack at all, and **Safety link**, because there was no
+[ArchitectureMain.pdf](../ArchitectureMain.pdf) does not draw the map stack at all, and **Safety link**, because there was no
 link to draw.
 
-**Colour by execution partition is the other diagram.** `../messageflow/` draws the same 37 island
+**Colour by execution partition is the other diagram.** [../messageflow/](../messageflow/) draws the same 37 island
 nodes coloured P0–P4 with every edge catalogued. Use that one for the timing and priority argument;
 use this one for the allocation argument.
 
@@ -72,11 +72,11 @@ use this one for the allocation argument.
 
 ## 2. A note on names: the original diagram is an older snapshot
 
-`ArchitectureMain.pdf` shows the pre-`autoware_universe` control and system nodes. The design document
+[ArchitectureMain.pdf](../ArchitectureMain.pdf) shows the pre-`autoware_universe` control and system nodes. The design document
 targets current `main` (August 2026). The nodes are the same functions under different names, and the
 diagram uses the **current** names. The mapping a reader of the original will need:
 
-| In `ArchitectureMain.pdf` | In this diagram / the design document | Basis |
+| In [ArchitectureMain.pdf](../ArchitectureMain.pdf) | In this diagram / the design document | Basis |
 | :-- | :-- | :-- |
 | `mpc_follower` | `autoware_mpc_lateral_controller` — **I10**, a plugin hosted by **I9** | §4.1 |
 | `velocity_controller` | `autoware_pid_longitudinal_controller` — **I11** | §4.1 |
@@ -143,7 +143,7 @@ into a safety island.
 | Safety link | N1 `si_safety_gateway` |
 
 N7 carries two names in the design document — `si_mrm_profile` in §4.2, §6.1 and §10.1,
-`si_mrm_planner` in §6.3 and §9.4. The diagram uses the §6.3 name, as `../messageflow/` does.
+`si_mrm_planner` in §6.3 and §9.4. The diagram uses the §6.3 name, as [../messageflow/](../messageflow/) does.
 
 ### C. New on the HPC — 9 nodes (§7)
 
@@ -182,7 +182,7 @@ the HPC's ability to reach the actuators.
 
 Worth stating, because a reader comparing the two diagrams side by side will notice.
 
-1. **This phase is a selective zoom, not a complete node diagram.** `ArchitectureMain.pdf` draws
+1. **This phase is a selective zoom, not a complete node diagram.** [ArchitectureMain.pdf](../ArchitectureMain.pdf) draws
    roughly ninety nodes, most of them in sensing and perception, and those pipelines are *unchanged*
    by this design — §5.1 puts `sensing`, `perception`, `localization`, `map` and `planning` entirely
    on the HPC. Drawing them node by node would spend the page on the part that does not change. So
@@ -208,7 +208,7 @@ Worth stating, because a reader comparing the two diagrams side by side will not
    alternative of §4.3.
 3. **Principal edges only.** The ingress rail, the sensing chain, the fault bus, the command sources
    into the gate, actuation and egress. The complete island edge catalogue — every arrow, with the
-   section it is taken from and the inferred ones flagged — is `../messageflow/`.
+   section it is taken from and the inferred ones flagged — is [../messageflow/](../messageflow/).
 
    **I10** `mpc_lateral_controller` and **I11** `pid_longitudinal_controller` are *plugins loaded
    inside* I9 `trajectory_follower_node`, so they publish no topic of their own. The links among them
@@ -217,7 +217,7 @@ Worth stating, because a reader comparing the two diagrams side by side will not
    `mrm_handler` takes `/api/operation_mode/state` from the HPC through N1 (§8.1) and the
    `OperationModeAvailability` it once read from the HPC's diagnostics from N2, inside System (island)
    (§4.1 I7, §6.1 N2). Everything else on the page has at least one link at both ends.
-4. **The `†` on the external/remote command** is the same open item `../messageflow/` records as
+4. **The `†` on the external/remote command** is the same open item [../messageflow/](../messageflow/) records as
    finding 1: §5.2 and §10.4 route it into the gate, but §8.1 lists eleven inbound signals and none of
    them is it. It is drawn dashed, on both sides of the link, pending that decision.
 
@@ -246,7 +246,7 @@ what the island can *do*, never what it can *stop doing*.
 
 ## 6. Integrating it later
 
-Like `../messageflow/`, this is a standalone TikZ picture using the review edition's palette. If the WG
+Like [../messageflow/](../messageflow/), this is a standalone TikZ picture using the review edition's palette. If the WG
 wants it in the design document, the `tikzpicture` body can move to `review/figures/` as a new figure
 under §10 — most naturally alongside §10.1, which makes the same allocation argument in Mermaid at much
 lower resolution. That would change the design document, so it waits for a request.

@@ -40,7 +40,7 @@ ASIL allocation evidence, fault-injection test plan, and the ISO 26262 work-prod
 
 ## 1. Inputs already fixed by the WG
 
-These are taken as given from `SafetyIsland_RefDesignWG.pdf` (p.18–20) and
+These are taken as given from [SafetyIsland_RefDesignWG.pdf](SafetyIsland_RefDesignWG.pdf) (p.18–20) and
 `SaftyIsland_ReferenceDesign.md`, and constrain the allocation:
 
 | # | Decision | Source |
@@ -513,7 +513,7 @@ migration list is far easier to check against a picture than against a table alo
 | **2** | The same graph, one box per stack | The picture the island modifies, with the detail folded away |
 | **3** | The same boxes, after the island | **The change itself**: Control and the Vehicle Interface migrate bodily; the island grows reduced versions of the other stacks; one narrow link joins the two |
 | **4** | Only what changed, at node level | The delta, opened up: removed, re-sourced and new on the HPC; migrated on the island |
-| **5** | The Safety Island alone | All 37 island nodes — the 18 of §4.1 and the 19 of §6 — each tagged **▶ B1–B4** with the behaviours it enables, per the §3.3 traceability table — **▶ SHARED** where every behaviour runs through it, **⊘** where none uses it. `layers/` also redraws it once per behaviour (B1–B4) |
+| **5** | The Safety Island alone | All 37 island nodes — the 18 of §4.1 and the 19 of §6 — each tagged **▶ B1–B4** with the behaviours it enables, per the §3.3 traceability table — **▶ SHARED** where every behaviour runs through it, **⊘** where none uses it. [layers/](layers/) also redraws it once per behaviour (B1–B4) |
 
 The progression is the argument of this section in visual form. Phase 3 is where the allocation is
 decided; phase 4 is where it is justified node by node; phase 5 is what the island then contains.
@@ -1169,7 +1169,7 @@ flowchart LR
     class HPCOFF,FSI2,ISEN3,ACT3 vehc;
 ```
 
-All five are built from `layers/` (`make` there, or `latexmk -pdf` per file); [layers/L4SafetyIsland-Layers.pdf](layers/L4SafetyIsland-Layers.pdf)
+All five are built from [layers/](layers/) (`make` there, or `latexmk -pdf` per file); [layers/L4SafetyIsland-Layers.pdf](layers/L4SafetyIsland-Layers.pdf)
 collects them onto uniform landscape pages for presentation, and [layers/L4SafetyIsland-Layers.md](layers/L4SafetyIsland-Layers.md)
 records the drawing conventions.
 
@@ -2596,7 +2596,7 @@ have no dependency on P0 beyond the world-state contract in §2.2.
 
 ---
 
-*Sources: `SafetyIsland_RefDesignWG.pdf` (Reference Design WG, 2026-08-14); `SaftyIsland_ReferenceDesign.md`;
+*Sources: [SafetyIsland_RefDesignWG.pdf](SafetyIsland_RefDesignWG.pdf) (Reference Design WG, 2026-08-14); `SaftyIsland_ReferenceDesign.md`;
 `This project researches the design of safety islan.md`; `AutowareSW.md`; `autoware_universe` package
 inventory, `main` branch, retrieved 2026-08-27; `autoware-safety-island` (branch `nano-ros`, NEWSLab NTU);
 AWF progress update 2026-08-20, "Porting the Autoware Safety Island onto nano-ros";

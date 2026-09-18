@@ -9,7 +9,7 @@ obvious but the argument is unsupported. So the same picture is drawn five times
 from the last.
 
 **Colour means the same thing on every phase**: the Autoware stack a node belongs to, taken from the
-legend of `ArchitectureMain.pdf`. Only the zoom changes, and — from phase 3 onward — which ECU each
+legend of [ArchitectureMain.pdf](../ArchitectureMain.pdf). Only the zoom changes, and — from phase 3 onward — which ECU each
 box runs on.
 
 | Phase | What it shows | Source |
@@ -23,7 +23,7 @@ box runs on.
 | — | All five on uniform landscape pages | `L4SafetyIsland-Layers.tex` → `.pdf` |
 
 **Phase 1 is redrawn.** Phase 1 restates the published Autoware node graph
-(`../ArchitectureMain.pdf`) in this series' own visual language, because a first page in a different
+([../ArchitectureMain.pdf](../ArchitectureMain.pdf)) in this series' own visual language, because a first page in a different
 drawing style breaks the progression — the eye reads the change of style as a change of content.
 
 ---
@@ -69,11 +69,11 @@ the phase-3 level:
   new stacks stay as one box each, exactly as in phase 3; phase 5 is where they open.
 
 A heavy box rule means "a whole stack, unchanged"; a thin rule means "a single node, opened up because
-it changed". Its own companion catalogue is `L4SafetyIsland-Layer4-ChangedNodes.md`.
+it changed". Its own companion catalogue is [L4SafetyIsland-Layer4-ChangedNodes.md](L4SafetyIsland-Layer4-ChangedNodes.md).
 
 **Phase 5 — the Safety Island alone.** The HPC dropped entirely so that all 37 island nodes (18
-migrated + 19 new, plus the optional N20) have room to be read at full size, in `ArchitectureMain.pdf`
-style. Every edge on it is catalogued in `../messageflow/`. Each node carries the behaviours it
+migrated + 19 new, plus the optional N20) have room to be read at full size, in [ArchitectureMain.pdf](../ArchitectureMain.pdf)
+style. Every edge on it is catalogued in [../messageflow/](../messageflow/). Each node carries the behaviours it
 enables, from the §3.3 table: a filled **B1–B4** tag, **SHARED** for I2, I15 and N12 (every behaviour
 runs through them), a hollow tag for N15 (on B2's and B3's path by §3.1, absent from §3.3), and ⊘ for
 the nodes no behaviour uses (I9–I12, I14, N20).
