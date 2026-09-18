@@ -9,6 +9,12 @@ Reference Design WG · draft for WG review · **Version 20260918**
 > document — carry the *same* code on their title page. A set that does not share one code is not
 > a coherent revision and should not be reviewed as one.
 
+> **Another way in — the slide deck.** The same design is presented as a discussion deck,
+> [L4SafetyIsland-SoftwareDesign.pdf](Slides/L4SafetyIsland-SoftwareDesign.pdf): the four behaviours,
+> the ladder drawn as a state diagram, the criticality tiers and the five-phase node allocation,
+> one figure per slide. Read it first for the shape of the design; read this document for the
+> arguments, the interface tables and the open decisions.
+
 **Revision history — major revisions only.**
 
 | Version | Issued | Status and scope |
@@ -241,7 +247,7 @@ what distinguishes [B2](#b2--keep-the-vehicle-in-its-lane-after-loss-of-the-hpc)
 | **Observable output** | `MrmState` = `MRM_OPERATING`; [`N3`](#61-supervision-state-and-fallback) mode = `LANE_KEEP_HOLD`; `/si/out/state` carries the authority holder, the corridor source in use, lateral deviation and the remaining hold budget |
 | **Bound** | Lateral deviation from corridor centre within the declared threshold; corridor validity age-checked per source; [`N7`](#61-supervision-state-and-fallback) bounds lateral acceleration, steering rate and jerk <mark>; `v_hold` is monotone non-increasing for the whole episode</mark> |
 | **Success criterion** | Lateral deviation stays inside the threshold for the whole episode, <mark>measured speed stays at or below `v_hold` throughout</mark>, **and** the episode ends in one of the two authorised exits below — never by `T_hold` simply lapsing into an undefined state |
-| **Exit — upward: the HPC resumes** | [`N2`](#61-supervision-state-and-fallback) observes the heartbeat restored **and** valid, in-envelope trajectories for a declared confirmation window. [`N3`](#61-supervision-state-and-fallback) then hands authority back through [`I3`](#41-migration-list)'s smooth-transition path and the island returns to supervision under [**B1**](#b1--degrade-the-ads-when-the-odd-cannot-be-held) — entering at `CONSTRAIN`, not `ALLOW`, and releasing only under the §6.4 hysteresis. **This is the only reversible transition in the ladder** |
+| **Exit — upward: the HPC resumes** | [`N2`](#61-supervision-state-and-fallback) observes the heartbeat restored **and** valid, in-envelope trajectories for a declared confirmation window. [`N3`](#61-supervision-state-and-fallback) then hands authority back through [`I3`](#41-migration-list)'s smooth-transition path and the island returns to supervision under [**B1**](#b1--degrade-the-ads-when-the-odd-cannot-be-held) — entering at `CONSTRAIN`, not `ALLOW`, and releasing only under the §6.4 hysteresis. **This is the only reversible *authority transfer* in the ladder** <mark>— the other edge back up, [B1](#b1--degrade-the-ads-when-the-odd-cannot-be-held) → `ADS_ACTIVE`, moves no authority, because the HPC drives throughout it</mark> |
 | **Exit — downward: the HPC stays lost** | `T_hold` expires with no confirmed recovery → escalate to [**B3**](#b3--pull-over-if-the-odd-continues-to-fail) <mark>, entered at `v_entry` with a refuge already under evaluation rather than at the hold speed with nothing staged</mark>. If [`N18`](#63-pull-over-mrm-after-hpc-loss) reports `pull_over_available = false`, [B3](#b3--pull-over-if-the-odd-continues-to-fail) degenerates to an in-lane stop, executed under [B2](#b2--keep-the-vehicle-in-its-lane-after-loss-of-the-hpc)'s own authority and control law |
 | **Failure** | Corridor lost mid-episode — all three sources invalid or expired → immediate in-lane stop on the heading tube, no waiting for `T_hold`. [`I19`](#41-migration-list) AEB fires, or [`N9`](#61-supervision-state-and-fallback) reports the actuators not tracking → <mark>emergency stop ([B4](#b4--emergency-stop-when-the-island-is-blind))</mark> |
 | **Optional enrichment** ([§3.5](#35-optional-enrichment-the-hpc-object-list)) | The last HPC object digest inside its carry-over budget, to lower `v_hold` or shorten [`N7`](#61-supervision-state-and-fallback)'s ramp. Never extends `T_hold` and never substitutes for the corridor |
@@ -441,7 +447,7 @@ fault code so the event recorder and the HARA can tell them apart.</mark>
 *B4, on the island's node graph. Nothing exteroceptive is lit: N17 declares the blackout, I6 brakes, I5 secures, and N4's dead reckoning — fed by the island IMU and wheel speed — is what N9 confirms the stop against. The sensor set, N13 and N1 are half-tone: the AEB trigger and the blackout declaration come through them, and `/si/out/state` still leaves through N1. Full size: [layers/L4SafetyIsland-Layer6-B4-EmergencyStop.pdf](layers/L4SafetyIsland-Layer6-B4-EmergencyStop.pdf); all four behaviours on one handout: [layers/L4SafetyIsland-Behaviours.pdf](layers/L4SafetyIsland-Behaviours.pdf).*
 
 
-### 3.2 Precedence: four episodes, one reversible edge
+### 3.2 Precedence: four episodes, two edges back up
 
 The four are episodes on a ladder, and what distinguishes them is **who holds authority** and
 **whether the situation is still recoverable**.
@@ -499,10 +505,10 @@ options below it. Applying them in any other order can select a behaviour whose 
 already failed — choosing [B3](#b3--pull-over-if-the-odd-continues-to-fail) on a blackout, for instance, commits the island to a refuge it cannot
 verify.</mark>
 
-**The ladder is one-way, with a single exception.** [B1](#b1--degrade-the-ads-when-the-odd-cannot-be-held) → [B2](#b2--keep-the-vehicle-in-its-lane-after-loss-of-the-hpc) → [B3](#b3--pull-over-if-the-odd-continues-to-fail) are entered on worsening evidence and
-are not undone by wishful thinking. The one reversible edge is **[B2](#b2--keep-the-vehicle-in-its-lane-after-loss-of-the-hpc) → [B1](#b1--degrade-the-ads-when-the-odd-cannot-be-held)**: if the HPC comes back and
+**The ladder is one-way, with two exceptions.** [B1](#b1--degrade-the-ads-when-the-odd-cannot-be-held) → [B2](#b2--keep-the-vehicle-in-its-lane-after-loss-of-the-hpc) → [B3](#b3--pull-over-if-the-odd-continues-to-fail) are entered on worsening evidence and
+are not undone by wishful thinking. <mark>Two edges climb back up, and they are different in kind.</mark> The reversible *authority* edge is **[B2](#b2--keep-the-vehicle-in-its-lane-after-loss-of-the-hpc) → [B1](#b1--degrade-the-ads-when-the-odd-cannot-be-held)**: if the HPC comes back and
 proves itself over a confirmation window, the island hands authority back and returns to supervising
-rather than driving. Nothing else climbs back up — in particular, [B3](#b3--pull-over-if-the-odd-continues-to-fail) never returns to [B2](#b2--keep-the-vehicle-in-its-lane-after-loss-of-the-hpc) or [B1](#b1--degrade-the-ads-when-the-odd-cannot-be-held), because
+rather than driving. <mark>The other is **[B1](#b1--degrade-the-ads-when-the-odd-cannot-be-held) → `ADS_ACTIVE`**: the domain the HPC declared through [`H4`](#7-new-nodes-to-add-on-the-hpc) has passed both acceptance tests and held for the §6.4 recovery window, so the HPC is driving normally again in the narrower domain and the island releases its cap. No authority moves on that edge — the HPC was driving throughout.</mark> Nothing else climbs back up — in particular, [B3](#b3--pull-over-if-the-odd-continues-to-fail) never returns to [B2](#b2--keep-the-vehicle-in-its-lane-after-loss-of-the-hpc) or [B1](#b1--degrade-the-ads-when-the-odd-cannot-be-held), because
 a pull-over commits the vehicle to leaving the running lane.
 
 <mark>**[B4](#b4--emergency-stop-when-the-island-is-blind) is not a fourth rung of that ladder; it is underneath all of them.** [B1](#b1--degrade-the-ads-when-the-odd-cannot-be-held)–[B3](#b3--pull-over-if-the-odd-continues-to-fail) escalate on a
