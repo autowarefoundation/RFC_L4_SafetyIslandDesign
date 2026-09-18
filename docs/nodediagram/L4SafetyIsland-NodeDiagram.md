@@ -7,19 +7,19 @@ This file and its diagram add to the design document; they do not modify it.
 stack, wired by topic. This diagram is **that picture with only the changed parts opened up**, drawn in
 the same visual language, so that the change can be read off rather than reconstructed.
 
-It is **phase 4** of the five-phase series in [L4SafetyIsland-Layers.md](L4SafetyIsland-Layers.md): phase 3 draws both ECUs with one box per
+It is **phase 4** of the five-phase series in [../layers/](../layers/): phase 3 draws both ECUs with one box per
 stack, phase 5 draws the whole island node by node, and this one sits between them — node level for
 what the island changes, phase-3 level for everything it leaves alone.
 
 | File | What it is |
 | :-- | :-- |
-| [L4SafetyIsland-Layer4-ChangedNodes.pdf](L4SafetyIsland-Layer4-ChangedNodes.pdf) | The diagram, vector, one page. Zoom in; it is drawn for A2 or screen |
-| [L4SafetyIsland-Layer4-ChangedNodes.png](L4SafetyIsland-Layer4-ChangedNodes.png) | The same, rasterised, for embedding |
-| `L4SafetyIsland-Layer4-ChangedNodes.tex` | TikZ source. `latexmk -pdf L4SafetyIsland-Layer4-ChangedNodes.tex` |
+| [L4SafetyIsland-NodeDiagram.pdf](L4SafetyIsland-NodeDiagram.pdf) | The diagram, vector, one page. Zoom in; it is drawn for A2 or screen |
+| [L4SafetyIsland-NodeDiagram.png](L4SafetyIsland-NodeDiagram.png) | The same, rasterised, for embedding |
+| `L4SafetyIsland-NodeDiagram.tex` | TikZ source. `latexmk -pdf L4SafetyIsland-NodeDiagram.tex` |
 | this file | What changed, node by node, with the section each row comes from |
 | [../messageflow/](../messageflow/) | **Companion.** The same 37 island nodes coloured by execution partition, with every edge catalogued |
 
-![Autoware with an L4 Safety Island](L4SafetyIsland-Layer4-ChangedNodes.png)
+![Autoware with an L4 Safety Island](L4SafetyIsland-NodeDiagram.png)
 
 ---
 
@@ -201,7 +201,7 @@ Worth stating, because a reader comparing the two diagrams side by side will not
      detail as phase 3.
    - **On the island**, node level for the nodes **migrated from the HPC** (the I-nodes). The island's
      own nineteen new nodes sit inside five blocks — sensing, localization, perception, planning,
-     system — again at phase-3 level. [L4SafetyIsland-Layers.md](L4SafetyIsland-Layers.md) opens them completely as phase 5.
+     system — again at phase-3 level. [../layers/](../layers/) opens them completely as phase 5.
 
    A **heavy box rule** means a whole stack, unchanged; a **thin rule** means a single node, opened up
    because it changed.

@@ -17,15 +17,16 @@ box runs on.
 | **1** | Autoware today, every node | `L4SafetyIsland-Layer1-AutowareToday.tex` |
 | **2** | Autoware today, one box per stack | `L4SafetyIsland-Layer2-AutowareAbstract.tex` |
 | **3** | The same picture, after the island | `L4SafetyIsland-Layer3-IslandAbstract.tex` |
-| **4** | What changed, at node level | `L4SafetyIsland-Layer4-ChangedNodes.tex` |
+| **4** | What changed, at node level | `../nodediagram/L4SafetyIsland-NodeDiagram.tex` |
 | **5** | The Safety Island alone | `L4SafetyIsland-Layer5-IslandNodes.tex` |
 | **5 · B1–B4** | Phase 5 once per behaviour | `L4SafetyIsland-Layer6-B1-DegradeADS.tex` … `-B4-EmergencyStop.tex` |
+| **B1–B4, collected** | The four behaviour pages alone, for §3.1 of the design | `L4SafetyIsland-Behaviours.tex` → [L4SafetyIsland-Behaviours.pdf](L4SafetyIsland-Behaviours.pdf) |
 | — | All five on uniform landscape pages | `L4SafetyIsland-Layers.tex` → `.pdf` |
 
 **Phase 1 is redrawn, phase 4 is reused.** Phase 1 restates the published Autoware node graph
 ([../ArchitectureMain.pdf](../ArchitectureMain.pdf)) in this series' own visual language, because a first page in a different
 drawing style breaks the progression — the eye reads the change of style as a change of content.
-Phase 4 is the node diagram already built in [L4SafetyIsland-Layer4-ChangedNodes.md](L4SafetyIsland-Layer4-ChangedNodes.md); duplicating it here would fork the
+Phase 4 is the node diagram already built in [../nodediagram/](../nodediagram/); duplicating it here would fork the
 source of truth.
 
 ---
@@ -71,7 +72,7 @@ the phase-3 level:
   new stacks stay as one box each, exactly as in phase 3; phase 5 is where they open.
 
 A heavy box rule means "a whole stack, unchanged"; a thin rule means "a single node, opened up because
-it changed". Its own companion catalogue is [L4SafetyIsland-Layer4-ChangedNodes.md](L4SafetyIsland-Layer4-ChangedNodes.md).
+it changed". Its own companion catalogue is [../nodediagram/L4SafetyIsland-NodeDiagram.md](../nodediagram/L4SafetyIsland-NodeDiagram.md).
 
 **Phase 5 — the Safety Island alone.** The HPC dropped entirely so that all 37 island nodes (18
 migrated + 19 new, plus the optional N20) have room to be read at full size, in [ArchitectureMain.pdf](../ArchitectureMain.pdf)
@@ -81,9 +82,12 @@ runs through them), a hollow tag for N15 (on B2's and B3's path by §3.1, absent
 the nodes no behaviour uses (I9–I12, I14, N20).
 
 **Phase 5 · B1–B4 — one page per behaviour.** The phase-5 drawing, unchanged, four times. What the
-behaviour runs on (§3.3) is in full colour, what it only passes through — a SHARED node, or a node
-§3.1 puts on its path — is half-tone, and everything else is faded; an edge is drawn at the weaker of
-its two ends. The lower-left panel lists the behaviour's Detect · Decide · Act · Assure nodes and its
+behaviour runs on (§3.3) is in full colour, and so are the SHARED nodes I2, I15 and N12, since every
+behaviour runs through them; what it only passes through — a node §3.1 puts on its path — is
+half-tone, and everything else is faded; an edge is drawn at the weaker of
+its two ends. Every island node has at least one incoming and one outgoing edge, and in each view
+the same holds among the lit nodes — which is why two off-island endpoints are drawn: the gPTP time
+source above the System group, N12's only input, and the diagnostic port under N11, its only output. The lower-left panel lists the behaviour's Detect · Decide · Act · Assure nodes and its
 trigger, precondition, response and exit. The drawing lives once, in `islandnodes-body.tex` with its
 styles in `islandnodes-style.tex`; phase 5 and the four views only set the title, the panel and which
 nodes are lit.
@@ -118,7 +122,7 @@ for f in L4SafetyIsland-Layer6-B*.tex; do latexmk -pdf $f; done
 latexmk -pdf L4SafetyIsland-Layers.tex     # collects all five, needs phase 4 built
 ```
 
-Phase 4 comes from [L4SafetyIsland-Layer4-ChangedNodes.md](L4SafetyIsland-Layer4-ChangedNodes.md); build it there first if it is missing.
+Phase 4 comes from [../nodediagram/](../nodediagram/); build it there first if it is missing.
 
 ---
 

@@ -133,6 +133,8 @@ traceable to one of them.
 | **B3** | **Pull over if the ODD continues to fail** | When degradation does not restore the envelope within a declared deadline, bring the vehicle out of the running lane to a standstill in a refuge — <mark>nominated by the HPC where one is offered, detected by the island's own sensors where one is not</mark>. |
 | <mark>**B4**</mark> | <mark>**Emergency stop when the island is blind**</mark> | <mark>When the island has lost the sensing that [B2](#b2--keep-the-vehicle-in-its-lane-after-loss-of-the-hpc) and [B3](#b3--pull-over-if-the-odd-continues-to-fail) both depend on, decelerate to a standstill where the vehicle already is — no lane keeping, no refuge, no lateral manoeuvre.</mark> |
 
+Each behaviour below closes with the island's node graph lit for it — phase 5 of the §10 series, one page per behaviour, drawn by the convention of [layers/L4SafetyIsland-Layers.md](layers/L4SafetyIsland-Layers.md). The four pages are collected in [layers/L4SafetyIsland-Behaviours.pdf](layers/L4SafetyIsland-Behaviours.pdf).
+
 ---
 
 #### B1 — Degrade the ADS when the ODD cannot be held
@@ -200,6 +202,11 @@ T_odd  <  t_margin  −  t_pullover
 needed. This is §6.3's refuge coverage guarantee, restated on the time axis instead of the distance
 axis, and it is why `T_odd` is declared per-situation by [`N19`](#64-odd-degradation-on-weather-and-visibility) rather than fixed as a
 constant.</mark>
+
+![B1 on the island's node graph: what B1 runs on in full colour, what it only passes through in half-tone, the rest of the island faded](layers/L4SafetyIsland-Layer6-B1-DegradeADS.png)
+
+*B1, on the island's node graph. The nodes of the B1 row of §3.3 are in full colour; the gate and the actuator path are half-tone because the HPC's own commands still pass through them, and so is I7, since requesting the MRM is B1's last rung. The fallback tier and the MRM operators stay faded: the island does not take control. Full size: [layers/L4SafetyIsland-Layer6-B1-DegradeADS.pdf](layers/L4SafetyIsland-Layer6-B1-DegradeADS.pdf); all four behaviours on one handout: [layers/L4SafetyIsland-Behaviours.pdf](layers/L4SafetyIsland-Behaviours.pdf).*
+
 
 ---
 
@@ -302,6 +309,11 @@ that are deliberately not on the island ([R4](#21-partitioning-rules), [R5](#21-
 position in the current lane, it does not resume route following, and a returning HPC re-acquires the
 mission only through the authority hand-back above.
 
+![B2 on the island's node graph: what B2 runs on in full colour, what it only passes through in half-tone, the rest of the island faded](layers/L4SafetyIsland-Layer6-B2-LaneKeepHold.png)
+
+*B2, on the island's node graph. The island steers: I13 with N7's planner, through the gate to I16. N1 and N8 are half-tone because the hold's entry and recovery verdicts pass through them; the HPC itself is faded. Full size: [layers/L4SafetyIsland-Layer6-B2-LaneKeepHold.pdf](layers/L4SafetyIsland-Layer6-B2-LaneKeepHold.pdf); all four behaviours on one handout: [layers/L4SafetyIsland-Behaviours.pdf](layers/L4SafetyIsland-Behaviours.pdf).*
+
+
 ---
 
 #### B3 — Pull over if the ODD continues to fail
@@ -368,6 +380,11 @@ motion, or hazards throughout and no directional signal at all — are a vehicle
 rather than a software one, and the WG should settle which. Nothing else in this design depends on
 the answer.</mark>
 
+![B3 on the island's node graph: what B3 runs on in full colour, what it only passes through in half-tone, the rest of the island faded](layers/L4SafetyIsland-Layer6-B3-PullOver.png)
+
+*B3, on the island's node graph. N18 selects the refuge from either source, I7 operates the pull-over slot, N7 plans into it, I13 follows, and I5 secures at standstill; I6 is lit as the abort. Full size: [layers/L4SafetyIsland-Layer6-B3-PullOver.pdf](layers/L4SafetyIsland-Layer6-B3-PullOver.pdf); all four behaviours on one handout: [layers/L4SafetyIsland-Behaviours.pdf](layers/L4SafetyIsland-Behaviours.pdf).*
+
+
 ---
 
 #### B4 — Emergency stop when the island is blind
@@ -418,6 +435,11 @@ impossible, because a blind island cannot detect the obstacle that would trigger
 against [`N16`](#62-island-safety-sensing)'s free-space distance. It is a reduced behaviour, not a blind one. [B4](#b4--emergency-stop-when-the-island-is-blind) is what
 remains when even the heading tube has nothing to check against, and [`N8`](#61-supervision-state-and-fallback) distinguishes the two by
 fault code so the event recorder and the HARA can tell them apart.</mark>
+
+![B4 on the island's node graph: what B4 runs on in full colour, what it only passes through in half-tone, the rest of the island faded](layers/L4SafetyIsland-Layer6-B4-EmergencyStop.png)
+
+*B4, on the island's node graph. Nothing exteroceptive is lit: N17 declares the blackout, I6 brakes, I5 secures, and N4's dead reckoning — fed by the island IMU and wheel speed — is what N9 confirms the stop against. The sensor set, N13 and N1 are half-tone: the AEB trigger and the blackout declaration come through them, and `/si/out/state` still leaves through N1. Full size: [layers/L4SafetyIsland-Layer6-B4-EmergencyStop.pdf](layers/L4SafetyIsland-Layer6-B4-EmergencyStop.pdf); all four behaviours on one handout: [layers/L4SafetyIsland-Behaviours.pdf](layers/L4SafetyIsland-Behaviours.pdf).*
+
 
 ### 3.2 Precedence: four episodes, one reversible edge
 

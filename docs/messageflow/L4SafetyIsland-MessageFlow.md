@@ -1,6 +1,6 @@
 # L4 Safety Island — Island Message Flow, Every Node
 
-**Companion to §10.2 of [L4SafetyIsland_SoftwareDesign_GitHub.md](../L4SafetyIsland_SoftwareDesign_GitHub.md).** Derived from design version 20260918.
+**Companion to §10.2 of [L4SafetyIsland_SoftwareDesign.md](../L4SafetyIsland_SoftwareDesign_GitHub.md).** Derived from design version 20260918.
 This file and its diagram add to the design document; they do not modify it.
 
 §10.2 *The island sensing chain* draws only the nodes that consume island sensor data: the five
@@ -15,14 +15,14 @@ the two gateways (N1, I16) at the island boundary.
 | [L4SafetyIsland-MessageFlow.png](L4SafetyIsland-MessageFlow.png) | The same, rasterised, for embedding |
 | `L4SafetyIsland-MessageFlow.tex` | TikZ source. `latexmk -pdf L4SafetyIsland-MessageFlow.tex` |
 | this file | The edge catalogue: every arrow and badge on the diagram, with the section it comes from |
-| [../layers/L4SafetyIsland-Layer4-ChangedNodes.md](../layers/L4SafetyIsland-Layer4-ChangedNodes.md) | **Companion.** Autoware's own node diagram, redrawn with the island added: allocation and change, not edges |
+| [../nodediagram/](../nodediagram/) | **Companion.** Autoware's own node diagram, redrawn with the island added: allocation and change, not edges |
 
 ![Island message flow — every node](L4SafetyIsland-MessageFlow.png)
 
-**Two diagrams, two questions.** This one and [../layers/L4SafetyIsland-Layer4-ChangedNodes.md](../layers/L4SafetyIsland-Layer4-ChangedNodes.md) are a pair, and they deliberately
+**Two diagrams, two questions.** This one and [../nodediagram/](../nodediagram/) are a pair, and they deliberately
 encode different things in colour. Neither modifies the design document.
 
-| | [../layers/L4SafetyIsland-Layer4-ChangedNodes.md](../layers/L4SafetyIsland-Layer4-ChangedNodes.md) | this diagram |
+| | [../nodediagram/](../nodediagram/) | this diagram |
 | :-- | :-- | :-- |
 | Answers | *Where does each node run, and what changed?* | *What does each node send to which other node?* |
 | Colour is | the Autoware stack, as in [ArchitectureMain.pdf](../ArchitectureMain.pdf) | the §9.1 execution partition, P0–P4 |
@@ -307,6 +307,6 @@ figure, and a matching Mermaid block into §10 of the Markdown. That changes the
 it waits for a request.
 
 The same applies to the companion, and **they should be folded in together if at all**: this one
-belongs with §10.2, which it extends, and [../layers/L4SafetyIsland-Layer4-ChangedNodes.md](../layers/L4SafetyIsland-Layer4-ChangedNodes.md) belongs with §10.1, which already makes
+belongs with §10.2, which it extends, and [../nodediagram/](../nodediagram/) belongs with §10.1, which already makes
 the allocation argument in Mermaid at far lower resolution. Folding in one without the other would
 leave §10 making half the argument twice.
