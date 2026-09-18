@@ -17,16 +17,14 @@ box runs on.
 | **1** | Autoware today, every node | `L4SafetyIsland-Layer1-AutowareToday.tex` |
 | **2** | Autoware today, one box per stack | `L4SafetyIsland-Layer2-AutowareAbstract.tex` |
 | **3** | The same picture, after the island | `L4SafetyIsland-Layer3-IslandAbstract.tex` |
-| **4** | What changed, at node level | `../nodediagram/L4SafetyIsland-NodeDiagram.tex` |
+| **4** | What changed, at node level | `L4SafetyIsland-Layer4-ChangedNodes.tex` |
 | **5** | The Safety Island alone | `L4SafetyIsland-Layer5-IslandNodes.tex` |
 | **5 · B1–B4** | Phase 5 once per behaviour | `L4SafetyIsland-Layer6-B1-DegradeADS.tex` … `-B4-EmergencyStop.tex` |
 | — | All five on uniform landscape pages | `L4SafetyIsland-Layers.tex` → `.pdf` |
 
-**Phase 1 is redrawn, phase 4 is reused.** Phase 1 restates the published Autoware node graph
+**Phase 1 is redrawn.** Phase 1 restates the published Autoware node graph
 (`../ArchitectureMain.pdf`) in this series' own visual language, because a first page in a different
 drawing style breaks the progression — the eye reads the change of style as a change of content.
-Phase 4 is the node diagram already built in `../nodediagram/`; duplicating it here would fork the
-source of truth.
 
 ---
 
@@ -71,7 +69,7 @@ the phase-3 level:
   new stacks stay as one box each, exactly as in phase 3; phase 5 is where they open.
 
 A heavy box rule means "a whole stack, unchanged"; a thin rule means "a single node, opened up because
-it changed". Its own companion catalogue is `../nodediagram/L4SafetyIsland-NodeDiagram.md`.
+it changed". Its own companion catalogue is `L4SafetyIsland-Layer4-ChangedNodes.md`.
 
 **Phase 5 — the Safety Island alone.** The HPC dropped entirely so that all 37 island nodes (18
 migrated + 19 new, plus the optional N20) have room to be read at full size, in `ArchitectureMain.pdf`
@@ -113,12 +111,11 @@ cd layers
 latexmk -pdf L4SafetyIsland-Layer1-AutowareToday.tex
 latexmk -pdf L4SafetyIsland-Layer2-AutowareAbstract.tex
 latexmk -pdf L4SafetyIsland-Layer3-IslandAbstract.tex
+latexmk -pdf L4SafetyIsland-Layer4-ChangedNodes.tex
 latexmk -pdf L4SafetyIsland-Layer5-IslandNodes.tex
 for f in L4SafetyIsland-Layer6-B*.tex; do latexmk -pdf $f; done
-latexmk -pdf L4SafetyIsland-Layers.tex     # collects all five, needs phase 4 built
+latexmk -pdf L4SafetyIsland-Layers.tex     # collects all five
 ```
-
-Phase 4 comes from `../nodediagram/`; build it there first if it is missing.
 
 ---
 

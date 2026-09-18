@@ -1170,7 +1170,7 @@ flowchart LR
 ```
 
 All five are built from `layers/` (`make` there, or `latexmk -pdf` per file); [layers/L4SafetyIsland-Layers.pdf](layers/L4SafetyIsland-Layers.pdf)
-collects them onto uniform landscape pages for presentation, and `layers/L4SafetyIsland-Layers.md`
+collects them onto uniform landscape pages for presentation, and [layers/L4SafetyIsland-Layers.md](layers/L4SafetyIsland-Layers.md)
 records the drawing conventions.
 
 ### 4.1 Migration list
