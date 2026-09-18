@@ -1,4 +1,4 @@
-# RFC_L4_SafetyIslandDesign
+# [RFC] L4 Safety Island Design
 
 This repo elaborates the design of Safety Island for L4 Autoware. It collects the RFC, discussion, and design document. 
 
