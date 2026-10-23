@@ -149,7 +149,7 @@ traceable to one of them.
 
 <mark>Each behaviour is written below against the full [D8](#1-inputs-already-fixed-by-the-wg) ranking. The two design branches of [D10](#1-inputs-already-fixed-by-the-wg) each carry only part of that set, and [§9.5](#95-two-design-branches-least-cost-and-maximum-safety) states how every behaviour is adjusted on each: the speed, the ODD and the evidence it can claim.</mark>
 
-Each behaviour below closes with the island's node graph lit for it — phase 5 of the §10 series, one page per behaviour, drawn by the convention of [layers/L4SafetyIsland-Layers.md](layers/L4SafetyIsland-Layers.md). The four pages are collected in [layers/L4SafetyIsland-Behaviours.pdf](layers/L4SafetyIsland-Behaviours.pdf). <mark>{B[5]} and {B[6]} have no page yet; theirs follow the detailed design.</mark>
+Each behaviour below closes with the island's node graph lit for it — phase 5 of the §10 series, one page per behaviour, drawn by the convention of [layers/L4SafetyIsland-Layers.md](layers/L4SafetyIsland-Layers.md). The <mark>six</mark> pages are collected in [layers/L4SafetyIsland-Behaviours.pdf](layers/L4SafetyIsland-Behaviours.pdf). <mark>The pages for [B5](#b5--tele-operation-from-the-remote-command-centre) and [B6](#b6--manual-joystick-control-without-streamed-sensing) are drawn from their §3.3 rows as they stand; they will be redrawn with the detailed design.</mark>
 
 ---
 
@@ -221,7 +221,7 @@ constant.</mark>
 
 ![B1 on the island's node graph: what B1 runs on in full colour, what it only passes through in half-tone, the rest of the island faded](layers/L4SafetyIsland-Layer6-B1-DegradeADS.png)
 
-*B1, on the island's node graph. The nodes of the B1 row of §3.3 are in full colour <mark>(the optional N13 half-tone, where fitted)</mark>; the gate and the actuator path are half-tone because the HPC's own commands still pass through them, and so is I7, since requesting the MRM is B1's last rung. The fallback tier and the MRM operators stay faded: the island does not take control. Full size: [layers/L4SafetyIsland-Layer6-B1-DegradeADS.pdf](layers/L4SafetyIsland-Layer6-B1-DegradeADS.pdf); all four behaviours on one handout: [layers/L4SafetyIsland-Behaviours.pdf](layers/L4SafetyIsland-Behaviours.pdf).*
+*B1, on the island's node graph. The nodes of the B1 row of §3.3 are in full colour <mark>(the optional N13 half-tone, where fitted)</mark>; the gate and the actuator path are half-tone because the HPC's own commands still pass through them, and so is I7, since requesting the MRM is B1's last rung. The fallback tier and the MRM operators stay faded: the island does not take control. Full size: [layers/L4SafetyIsland-Layer6-B1-DegradeADS.pdf](layers/L4SafetyIsland-Layer6-B1-DegradeADS.pdf); all <mark>six</mark> behaviours on one handout: [layers/L4SafetyIsland-Behaviours.pdf](layers/L4SafetyIsland-Behaviours.pdf).*
 
 
 ---
@@ -358,7 +358,7 @@ mission only through the authority hand-back above.
 
 ![B2 on the island's node graph: what B2 runs on in full colour, what it only passes through in half-tone, the rest of the island faded](layers/L4SafetyIsland-Layer6-B2-LaneKeepHold.png)
 
-*B2, on the island's node graph. The island steers: I13 with N7's planner, through the gate to I16, <mark>on the lane lines N14's camera holds; N6 radar and N17's camera-validity verdict are lit, the optional N13 is not.</mark> N1 and N8 are half-tone because the hold's entry and recovery verdicts pass through them; the HPC itself is faded. Full size: [layers/L4SafetyIsland-Layer6-B2-LaneKeepHold.pdf](layers/L4SafetyIsland-Layer6-B2-LaneKeepHold.pdf); all four behaviours on one handout: [layers/L4SafetyIsland-Behaviours.pdf](layers/L4SafetyIsland-Behaviours.pdf).*
+*B2, on the island's node graph. The island steers: I13 with N7's planner, through the gate to I16, <mark>on the lane lines N14's camera holds; N6 radar and N17's camera-validity verdict are lit, the optional N13 is not.</mark> N1 and N8 are half-tone because the hold's entry and recovery verdicts pass through them; the HPC itself is faded. Full size: [layers/L4SafetyIsland-Layer6-B2-LaneKeepHold.pdf](layers/L4SafetyIsland-Layer6-B2-LaneKeepHold.pdf); all <mark>six</mark> behaviours on one handout: [layers/L4SafetyIsland-Behaviours.pdf](layers/L4SafetyIsland-Behaviours.pdf).*
 
 
 ---
@@ -447,7 +447,7 @@ the answer.</mark>
 
 ![B3 on the island's node graph: what B3 runs on in full colour, what it only passes through in half-tone, the rest of the island faded](layers/L4SafetyIsland-Layer6-B3-PullOver.png)
 
-*B3, on the island's node graph. N18 selects the refuge from either source <mark>— the island-detected one found by N14's camera, which is lit —</mark> I7 operates the pull-over slot, N7 plans into it, I13 follows, and I5 secures at standstill; I6 is lit as the abort. Full size: [layers/L4SafetyIsland-Layer6-B3-PullOver.pdf](layers/L4SafetyIsland-Layer6-B3-PullOver.pdf); all four behaviours on one handout: [layers/L4SafetyIsland-Behaviours.pdf](layers/L4SafetyIsland-Behaviours.pdf).*
+*B3, on the island's node graph. N18 selects the refuge from either source <mark>— the island-detected one found by N14's camera, which is lit —</mark> I7 operates the pull-over slot, N7 plans into it, I13 follows, and I5 secures at standstill; I6 is lit as the abort. Full size: [layers/L4SafetyIsland-Layer6-B3-PullOver.pdf](layers/L4SafetyIsland-Layer6-B3-PullOver.pdf); all <mark>six</mark> behaviours on one handout: [layers/L4SafetyIsland-Behaviours.pdf](layers/L4SafetyIsland-Behaviours.pdf).*
 
 
 ---
@@ -511,7 +511,7 @@ fault code so the event recorder and the HARA can tell them apart.</mark>
 
 ![B4 on the island's node graph: what B4 runs on in full colour, what it only passes through in half-tone, the rest of the island faded](layers/L4SafetyIsland-Layer6-B4-EmergencyStop.png)
 
-*B4, on the island's node graph. Nothing exteroceptive is lit: N17 declares the blackout, I6 brakes, I5 secures, and N4's dead reckoning — fed by the chassis signals, and the island IMU where fitted — is what N9 confirms the stop against. The sensor set, N6 and N1 are half-tone: the AEB trigger <mark>— now radar's, since the 2D lidar is optional —</mark> and the blackout declaration come through them, and `/si/out/state` still leaves through N1. Full size: [layers/L4SafetyIsland-Layer6-B4-EmergencyStop.pdf](layers/L4SafetyIsland-Layer6-B4-EmergencyStop.pdf); all four behaviours on one handout: [layers/L4SafetyIsland-Behaviours.pdf](layers/L4SafetyIsland-Behaviours.pdf).*
+*B4, on the island's node graph. Nothing exteroceptive is lit: N17 declares the blackout, I6 brakes, I5 secures, and N4's dead reckoning — fed by the chassis signals, and the island IMU where fitted — is what N9 confirms the stop against. The sensor set, N6 and N1 are half-tone: the AEB trigger <mark>— now radar's, since the 2D lidar is optional —</mark> and the blackout declaration come through them, and `/si/out/state` still leaves through N1. Full size: [layers/L4SafetyIsland-Layer6-B4-EmergencyStop.pdf](layers/L4SafetyIsland-Layer6-B4-EmergencyStop.pdf); all <mark>six</mark> behaviours on one handout: [layers/L4SafetyIsland-Behaviours.pdf](layers/L4SafetyIsland-Behaviours.pdf).*
 
 
 #### B5 — Tele-operation from the remote command centre
@@ -543,6 +543,10 @@ extra steps, so [B5](#b5--tele-operation-from-the-remote-command-centre) is admi
 | <mark>**Minimum sensor rung** (§9.4)</mark> | <mark>**A** — the camera, which is what the remote driver watches. Radar and ultrasonic are streamed where fitted</mark> |
 | <mark>**Pending**</mark> | <mark>Link technology and redundancy; the latency budget, `T_link` and `v_teleop`; security of the RCC session (authentication, replay, command integrity end to end); whether [B5](#b5--tele-operation-from-the-remote-command-centre) may take over a moving vehicle; the RCC's human-factors requirements</mark> |
 
+![B5 on the island's node graph: what B5 runs on in full colour, what it only passes through in half-tone, the rest of the island faded](layers/L4SafetyIsland-Layer6-B5-TeleOperation.png)
+
+<mark>*B5, on the island's node graph. The RCC, outside the boundary, talks to N21 over the island's own modem; the remote command enters the gate as its remote source, and N3 grants and revokes it. N22 packs the stream from the island sensors (read through the same ingest as N14, N6 and N15) and N4's ego state. I19, I20, N10 and N9 stay lit as the guards the remote driver cannot override; N7, I13 and I6 are half-tone, the link-loss stop. Full size: [layers/L4SafetyIsland-Layer6-B5-TeleOperation.pdf](layers/L4SafetyIsland-Layer6-B5-TeleOperation.pdf).*</mark>
+
 #### B6 — Manual joystick control without streamed sensing
 
 <mark>*Declared; detailed design pending ([D9](#1-inputs-already-fixed-by-the-wg), open decision 20).*</mark>
@@ -566,6 +570,10 @@ tele-operation are both unavailable.</mark>
 | <mark>**Observable output**</mark> | <mark>`OperationModeState` = `LOCAL` — a mode Autoware already defines</mark> |
 | <mark>**Minimum sensor rung** (§9.4)</mark> | <mark>**0** — no island sensor is required</mark> |
 | <mark>**Pending**</mark> | <mark>The device and the radio — band, range, pairing, interference; where the wired port sits on the vehicle; `v_local` and `T_local`; the integrity level of the joystick path; whether [B6](#b6--manual-joystick-control-without-streamed-sensing) may take over a moving vehicle</mark> |
+
+![B6 on the island's node graph: what B6 runs on in full colour, what it only passes through in half-tone, the rest of the island faded](layers/L4SafetyIsland-Layer6-B6-Joystick.png)
+
+<mark>*B6, on the island's node graph. The joystick, outside the boundary, reaches N23 on the local control port; the local command enters the gate as its local source, which outranks the remote one, and N3 holds the mode. Nothing is streamed, so N22, N21 and the RCC are faded. I6 and I5 stop the vehicle on release or link loss; I19 and I20 stay armed where sensing is still valid. Full size: [layers/L4SafetyIsland-Layer6-B6-Joystick.pdf](layers/L4SafetyIsland-Layer6-B6-Joystick.pdf).*</mark>
 
 ---
 

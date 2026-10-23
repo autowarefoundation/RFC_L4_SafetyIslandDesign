@@ -19,8 +19,8 @@ box runs on.
 | **3** | The same picture, after the island | `L4SafetyIsland-Layer3-IslandAbstract.tex` |
 | **4** | What changed, at node level | `../nodediagram/L4SafetyIsland-NodeDiagram.tex` |
 | **5** | The Safety Island alone | `L4SafetyIsland-Layer5-IslandNodes.tex` |
-| **5 · B1–B4** | Phase 5 once per behaviour | `L4SafetyIsland-Layer6-B1-DegradeADS.tex` … `-B4-EmergencyStop.tex` |
-| **B1–B4, collected** | The four behaviour pages alone, for §3.1 of the design | `L4SafetyIsland-Behaviours.tex` → [L4SafetyIsland-Behaviours.pdf](L4SafetyIsland-Behaviours.pdf) |
+| **5 · B1–B6** | Phase 5 once per behaviour | `L4SafetyIsland-Layer6-B1-DegradeADS.tex` … `-B6-Joystick.tex` |
+| **B1–B6, collected** | The six behaviour pages alone, for §3.1 of the design | `L4SafetyIsland-Behaviours.tex` → [L4SafetyIsland-Behaviours.pdf](L4SafetyIsland-Behaviours.pdf) |
 | — | All five on uniform landscape pages | `L4SafetyIsland-Layers.tex` → `.pdf` |
 
 **Phase 1 is redrawn, phase 4 is reused.** Phase 1 restates the published Autoware node graph
@@ -75,21 +75,21 @@ A heavy box rule means "a whole stack, unchanged"; a thin rule means "a single n
 it changed". Its own companion catalogue is [../nodediagram/L4SafetyIsland-NodeDiagram.md](../nodediagram/L4SafetyIsland-NodeDiagram.md).
 
 **Phase 5 — the Safety Island alone.** The HPC dropped entirely so that all 37 island nodes (18
-migrated + 19 new, plus the optional N20) have room to be read at full size, in [ArchitectureMain.pdf](../ArchitectureMain.pdf)
+migrated + 19 new, plus the optional N20, and N21–N23 of §6.5 for B5 and B6) have room to be read at full size, in [ArchitectureMain.pdf](../ArchitectureMain.pdf)
 style. Every edge on it is catalogued in [../messageflow/](../messageflow/). Each node carries the behaviours it
-enables, from the §3.3 table: a filled **B1–B4** tag, **SHARED** for I2, I15 and N12 (every behaviour
+enables, from the §3.3 table: a filled **B1–B6** tag, **SHARED** for I2, I15 and N12 (every behaviour
 runs through them), a hollow tag for N15 (on B2's and B3's path by §3.1, absent from §3.3), and ⊘ for
 the nodes no behaviour uses (I9–I12, I14, N20).
 
-**Phase 5 · B1–B4 — one page per behaviour.** The phase-5 drawing, unchanged, four times. What the
+**Phase 5 · B1–B6 — one page per behaviour.** The phase-5 drawing, unchanged, six times. What the
 behaviour runs on (§3.3) is in full colour, and so are the SHARED nodes I2, I15 and N12, since every
 behaviour runs through them; what it only passes through — a node §3.1 puts on its path — is
 half-tone, and everything else is faded; an edge is drawn at the weaker of
 its two ends. Every island node has at least one incoming and one outgoing edge, and in each view
 the same holds among the lit nodes — which is why two off-island endpoints are drawn: the gPTP time
-source above the System group, N12's only input, and the diagnostic port under N11, its only output. The lower-left panel lists the behaviour's Detect · Decide · Act · Assure nodes and its
+source above the System group, N12's only input, and the diagnostic port under N11, its only output. B5 and B6 add two more, outside the boundary to the right: the RCC, which N21 talks to over the island's own cellular modem, and the joystick on N23's local control port. Their detailed design is pending (§6.5), so their pages are drawn from the §3.3 rows as they stand. The lower-left panel lists the behaviour's Detect · Decide · Act · Assure nodes and its
 trigger, precondition, response and exit. The drawing lives once, in `islandnodes-body.tex` with its
-styles in `islandnodes-style.tex`; phase 5 and the four views only set the title, the panel and which
+styles in `islandnodes-style.tex`; phase 5 and the six views only set the title, the panel and which
 nodes are lit.
 
 ---
