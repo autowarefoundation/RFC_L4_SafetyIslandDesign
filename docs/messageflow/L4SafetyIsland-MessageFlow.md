@@ -1,6 +1,6 @@
 # L4 Safety Island — Island Message Flow, Every Node
 
-**Companion to §10.2 of [L4SafetyIsland_SoftwareDesign.md](../L4SafetyIsland_SoftwareDesign_GitHub.md).** Derived from design version 20260918.
+**Companion to §10.2 of [L4SafetyIsland_SoftwareDesign.md](../L4SafetyIsland_SoftwareDesign_GitHub.md).** Derived from design version 20261023.
 This file and its diagram add to the design document; they do not modify it.
 
 §10.2 *The island sensing chain* draws only the nodes that consume island sensor data: the five
@@ -109,12 +109,12 @@ should confirm.
 | A1 | HPC (H1) → N1 | the 11 §8.1 signals, TSN, SI-E2E/A and /B | per signal | §8.1, §8.4 |
 | A2 | TSN switch → N12 | 802.1AS gPTP sync | — | §6.1 N12, §10.1 |
 | A3 | N12 → N1 | time-base valid / invalid — a lost time base invalidates every age check | 1 Hz | §6.1 N12 |
-| A4 | island IMU + wheel speed → N4 | vehicle dynamics | 100 Hz | §6.1 N4, §6.2 |
+| A4 | island IMU *(D8 rank 4)* + wheel speed → N4 | vehicle dynamics | 100 Hz | §6.1 N4, §6.2 |
 | A5 | forward camera → N14 | low-resolution frames (or a smart camera's lane / object list) | 10–20 Hz | §6.2, open decision 8 |
 | A6 | forward radar → N6 | object tracks: range, range-rate, azimuth | 20 Hz | §6.2 |
 | A7 | rear-corner radar → N6 | tracks on the pull-over side | — | §9.4, §6.3; *N6 as its ingest: inferred* |
-| A8 | 2D lidar → N13 | planar scan, ~1080 points | 10–40 Hz | §6.2 |
-| A9 | ultrasonic array → N15 | near-field distances, 8–12 channels | 10–20 Hz | §6.2 |
+| A8 | 2D lidar → N13 *(optional, D8)* | planar scan, ~1080 points | 10–40 Hz | §6.2 |
+| A9 | ultrasonic array → N15 *(D8 rank 3)* | near-field distances, 8–12 channels | 10–20 Hz | §6.2 |
 | A10 | every exteroceptive sensor → N17 | raw stream: frame rate, blockage, degradation | — | §6.2 N17, §10.2 |
 | A11 | vehicle CAN → N19 | wiper state, exterior temperature, rain sensor | — | §6.4 detection table; *consumer inferred* |
 | A12 | on-SoC FSI → N8 | SPI + `SOC_ERROR` GPIO — hardware fault, watchdog, failover | ≤ 1 ms | §8.5, §9.2 |
@@ -156,8 +156,8 @@ Every row passes N1's E2E check and age limit first (§8.4); the age limits are 
 | C8 | N15 → I20 | ultrasonic returns as `PointCloud2` | 10–20 Hz | §4.4, §6.2 N15 |
 | C9 | N6 → I19 | radar tracks | 20 Hz | §4.4 table |
 | C10 | N6 → N18 | rear-corner radar: vehicle closing on the pull-over side | 20 Hz | §3.3 B3, §6.3 abort ladder, §10.5 |
-| C11 | N14 → N5 | perceived lane boundaries — the fallback corridor source | 10–20 Hz | §6.1 N5, §10.2 |
-| C12 | N6 · N13 · N14 → N19 | visibility evidence: lidar return range, intensity, multi-echo; radar-vs-lidar divergence; camera contrast, lane continuity | — | §6.4 detection table; *routing through the ingest nodes inferred* |
+| C11 | N14 → N5 | camera lane boundaries — the required corridor source once the island drives | 10–20 Hz | §6.1 N5, §10.2 |
+| C12 | N6 · N13 · N14 → N19 | visibility evidence: camera contrast, lane continuity; radar-vs-camera divergence; lidar return range, intensity, multi-echo and radar-vs-lidar divergence where a lidar is fitted | — | §6.4 detection table; *routing through the ingest nodes inferred* |
 | C13 | N17 → N19 | per-source degradation cause | 5–10 Hz | §6.2 N17 ("drives the island's own ODD verdict") |
 | C14 | N16 → N10 | stopping-distance input to the RSS longitudinal envelope | 20–50 Hz | §6.1 N10 |
 | C15 | N16 → N5 | perceived corridor | 20–50 Hz | §10.2 |
@@ -188,7 +188,7 @@ Not drawn as lines: **N16 → N20** plausibility cross-check where the fields of
 | D5 | N10 → I1 | envelope limits: acceleration, jerk, curvature, speed | 50 Hz | §10.4, §2.2 |
 | D6 | N5 → N8 | lateral-containment fault | on event | §6.1 N8 |
 | D7 | N5 ⇄ N3 | corridor source in use, validity, lateral deviation ⇄ containment suspension during B3 | 50 Hz | §3.1 B2, §3.2, §8.2 `IslandState`; *N5 as producer inferred* |
-| D8 | N5 → N7 | the selected corridor (H3, N14 or heading tube) | 50 Hz | §7 H3 ("enabling N5 and N7"); *routing through N5 inferred* |
+| D8 | N5 → N7 | the selected corridor (N14 camera, refined by H3 while fresh) | 50 Hz | §7 H3 ("enabling N5 and N7"); *routing through N5 inferred* |
 | D9 | N18 → N3 | `pull_over_available` | 20 Hz | §10.3 Exit B |
 | D10 | N18 → N7 | refuge target: side, window, lateral offset | 20 Hz | §6.3 split; *inferred* |
 | D11 | I7 ⇄ N18 | `OperateMrm` on `/system/mrm/pull_over_manager/operate` ⇄ `MrmBehaviorStatus` on `.../status` | on request / 20 Hz | §6.3 |
@@ -257,7 +257,7 @@ written into I19's box rather than drawn: it would be the only line crossing the
 ## 5. What drawing every edge exposed in the design
 
 Drawing the complete graph forces every message to have exactly one producer and at least one
-consumer. The items below are places where the design document, as of 20260918, does not yet say
+consumer. The items below are places where the design document, as of 20261023, does not yet say
 which. **None is changed here.** Each is drawn as the most literal reading of the text, and each is a
 candidate for the next revision or the open-decision list.
 

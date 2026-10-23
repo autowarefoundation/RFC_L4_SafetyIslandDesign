@@ -1,6 +1,6 @@
 # L4 Safety Island — the Autoware Node Diagram, Redrawn
 
-**Companion to [ArchitectureMain.pdf](../ArchitectureMain.pdf), the Autoware node diagram.** Derived from design version 20260918.
+**Companion to [ArchitectureMain.pdf](../ArchitectureMain.pdf), the Autoware node diagram.** Derived from design version 20261023.
 This file and its diagram add to the design document; they do not modify it.
 
 [ArchitectureMain.pdf](../ArchitectureMain.pdf) is the picture the WG already has in its head: every Autoware node, coloured by
