@@ -87,7 +87,7 @@ behaviour runs through them; what it only passes through — a node §3.1 puts o
 half-tone, and everything else is faded; an edge is drawn at the weaker of
 its two ends. Every island node has at least one incoming and one outgoing edge, and in each view
 the same holds among the lit nodes — which is why two off-island endpoints are drawn: the gPTP time
-source above the System group, N12's only input, and the diagnostic port under N11, its only output. B5 and B6 add two more, outside the boundary to the right: the RCC, which N21 talks to over the island's own cellular modem, and the joystick on N23's local control port. Their detailed design is pending (§6.5), so their pages are drawn from the §3.3 rows as they stand. The lower-left panel lists the behaviour's Detect · Decide · Act · Assure nodes and its
+source above the System group, N12's only input, and the diagnostic port under N11, its only output. B5 and B6 add two more, outside the boundary to the right: the RCC, which N21 talks to over the island's own cellular modem, and the joystick on N23's local control port. Their pages follow the §3.3 rows and the stage-1 detailed design of §6.6. The lower-left panel lists the behaviour's Detect · Decide · Act · Assure nodes and its
 trigger, precondition, response and exit. The drawing lives once, in `islandnodes-body.tex` with its
 styles in `islandnodes-style.tex`; phase 5 and the six views only set the title, the panel and which
 nodes are lit.

@@ -19,7 +19,7 @@ Reference Design WG · draft for WG review · **Version 20261023**
 
 | Version | Issued | Status and scope |
 | :-- | :-- | :-- |
-| **20261023** | 2026-10-23 | **Major revision**, superseding version 20260918; content from the WG session of 2026-10-17. *(1)* **Ranks the island sensors** ([D8](#1-inputs-already-fixed-by-the-wg)): forward camera **mandatory**, radar second, ultrasonic third, IMU / GNSS fourth, 2D lidar **optional**. A behaviour may require only the camera; a lower-ranked sensor buys speed or ODD width, never the behaviour itself. Every behaviour above [B4](#b4--emergency-stop-when-the-island-is-blind) is rewritten against the camera, the §9.4 sensor rungs are re-cut to the ranking (B2 and B4 survive at rung A and rung 0 respectively; B3 drops to rung A at or below ~30 km/h), and the AEB trigger moves from the 2D lidar to radar. *(2)* **[B2](#b2--keep-the-vehicle-in-its-lane-after-loss-of-the-hpc) first slows to the safe speed of the current ODD**, `v_odd` — of the order of 60 km/h on a highway and 30 km/h on a city road, the class latched from [`H4`](#7-new-nodes-to-add-on-the-hpc)'s last `active_odd` — and its hold window `T_hold` is set at **8–15 s** per road class, long enough to contain the descent to `v_odd` and still leave the HPC time to return. The lane must be observable **by the camera**: the buffered map corridor refines it but cannot stand in for it, and the heading / yaw-rate tube is withdrawn as a corridor source. When `T_hold` expires, [B2](#b2--keep-the-vehicle-in-its-lane-after-loss-of-the-hpc) hands over to exactly one successor — [B3](#b3--pull-over-if-the-odd-continues-to-fail) if the camera still sees the lane, [B4](#b4--emergency-stop-when-the-island-is-blind) if it does not. *(3)* **[B3](#b3--pull-over-if-the-odd-continues-to-fail) searches with the camera**: [`N14`](#62-island-safety-sensing) holds the lane lines, finds the pull-over space between the outer lane line and the road edge, and bounds the lateral move; radar confirms what is coming on the pull-over side and may disqualify a space, never qualify one. *(4)* **[B4](#b4--emergency-stop-when-the-island-is-blind) is redefined as the loss of the camera** (or of the lane lines beyond the bridging budget); a surviving radar keeps AEB armed and may steepen the ramp, but does not lift the blackout. *(5)* **Declares two human-driven behaviours** on a new island communication module to the remote command and control centre and a local control port ([D9](#1-inputs-already-fixed-by-the-wg)): [B5](#b5--tele-operation-from-the-remote-command-centre) **tele-operation** from the RCC on streamed camera, radar and ultrasonic, and [B6](#b6--manual-joystick-control-without-streamed-sensing) **manual joystick control** over a wired or short-range radio link with no stream. Adds §6.5 and the nodes [`N21`](#65-remote-command-and-control-link-and-local-control-port) `si_rcc_link`, [`N22`](#65-remote-command-and-control-link-and-local-control-port) `si_teleop_streamer` and [`N23`](#65-remote-command-and-control-link-and-local-control-port) `si_local_control`; their detailed design is pending. *(6)* **Carries the design in two branches** ([D10](#1-inputs-already-fixed-by-the-wg), [§9.5](#95-two-design-branches-least-cost-and-maximum-safety)): **Least-Cost** — camera, ultrasonic, 2D lidar and IMU / GNSS on an S32Z2, AURIX TC4x or Stellar microcontroller, with no radar, which makes it a city-road, fair-weather branch — and **Maximum-Safety** — camera, four radars, ultrasonic and IMU / GNSS on an R-Car X5H; every behaviour is adjusted to each branch's sensors. Also restores the missing ultrasonic row of §6.2. Adds open decisions 19 to 23, and reshapes 3, 4, 8, 13, 14, 15 and 18. **Marker yellow continues to mark everything new since 20260827**, so this revision's material is highlighted alongside that of 20260903 and 20260918. |
+| **20261023** | 2026-10-23 | **Major revision**, superseding version 20260918; content from the WG session of 2026-10-17. *(1)* **Ranks the island sensors** ([D8](#1-inputs-already-fixed-by-the-wg)): forward camera **mandatory**, radar second, ultrasonic third, IMU / GNSS fourth, 2D lidar **optional**. A behaviour may require only the camera; a lower-ranked sensor buys speed or ODD width, never the behaviour itself. Every behaviour above [B4](#b4--emergency-stop-when-the-island-is-blind) is rewritten against the camera, the §9.4 sensor rungs are re-cut to the ranking (B2 and B4 survive at rung A and rung 0 respectively; B3 drops to rung A at or below ~30 km/h), and the AEB trigger moves from the 2D lidar to radar. *(2)* **[B2](#b2--keep-the-vehicle-in-its-lane-after-loss-of-the-hpc) first slows to the safe speed of the current ODD**, `v_odd` — of the order of 60 km/h on a highway and 30 km/h on a city road, the class latched from [`H4`](#7-new-nodes-to-add-on-the-hpc)'s last `active_odd` — and its hold window `T_hold` is set at **8–15 s** per road class, long enough to contain the descent to `v_odd` and still leave the HPC time to return. The lane must be observable **by the camera**: the buffered map corridor refines it but cannot stand in for it, and the heading / yaw-rate tube is withdrawn as a corridor source. When `T_hold` expires, [B2](#b2--keep-the-vehicle-in-its-lane-after-loss-of-the-hpc) hands over to exactly one successor — [B3](#b3--pull-over-if-the-odd-continues-to-fail) if the camera still sees the lane, [B4](#b4--emergency-stop-when-the-island-is-blind) if it does not. *(3)* **[B3](#b3--pull-over-if-the-odd-continues-to-fail) searches with the camera**: [`N14`](#62-island-safety-sensing) holds the lane lines, finds the pull-over space between the outer lane line and the road edge, and bounds the lateral move; radar confirms what is coming on the pull-over side and may disqualify a space, never qualify one. *(4)* **[B4](#b4--emergency-stop-when-the-island-is-blind) is redefined as the loss of the camera** (or of the lane lines beyond the bridging budget); a surviving radar keeps AEB armed and may steepen the ramp, but does not lift the blackout. *(5)* **Declares two human-driven behaviours** on a new island communication module to the remote command and control centre and a local control port ([D9](#1-inputs-already-fixed-by-the-wg)): [B5](#b5--tele-operation-from-the-remote-command-centre) **tele-operation** from the RCC on streamed camera, radar and ultrasonic, and [B6](#b6--manual-joystick-control-without-streamed-sensing) **manual joystick control** over a wired or short-range radio link with no stream. Adds §6.5 and the nodes [`N21`](#65-remote-command-and-control-link-and-local-control-port) `si_rcc_link`, [`N22`](#65-remote-command-and-control-link-and-local-control-port) `si_teleop_streamer` and [`N23`](#65-remote-command-and-control-link-and-local-control-port) `si_local_control`; their detailed design is pending. *(6)* **Carries the design in two branches** ([D10](#1-inputs-already-fixed-by-the-wg), [§9.5](#95-two-design-branches-least-cost-and-maximum-safety)): **Least-Cost** — camera, ultrasonic, 2D lidar and IMU / GNSS on an S32Z2, AURIX TC4x or Stellar microcontroller, with no radar, which makes it a city-road, fair-weather branch — and **Maximum-Safety** — camera, four radars, ultrasonic and IMU / GNSS on an R-Car X5H; every behaviour is adjusted to each branch's sensors. Also restores the missing ultrasonic row of §6.2. *(7)* **Gives [B5](#b5--tele-operation-from-the-remote-command-centre) and [B6](#b6--manual-joystick-control-without-streamed-sensing) a stage-1 detailed design** ([§6.6](#66-detailed-design-of-b5-and-b6), [§8.6](#86-the-rcc-link-and-the-local-control-port)): both entered from standstill; [B5](#b5--tele-operation-from-the-remote-command-centre) drives on bounded setpoints at a `v_teleop` set by the latency measured through the frame-stamp echo, is stopped by the island after `T_link` = 300 ms of silence, and may re-engage the ADS from `SAFE_STOP`; [B6](#b6--manual-joystick-control-without-streamed-sensing) runs a cableless-machinery joystick at 5 km/h and stops after `T_local` = 200 ms. Adds the SI-E2E/R profile for the open RCC link, and the P3s partition. Adds open decisions 19 to 23, and reshapes 3, 4, 8, 13, 14, 15 and 18. **Marker yellow continues to mark everything new since 20260827**, so this revision's material is highlighted alongside that of 20260903 and 20260918. |
 | 20260918 | 2026-09-18 | **Major revision**, superseding version 20260912. *(1)* Recasts [B1](#b1--degrade-the-ads-when-the-odd-cannot-be-held) from a constraint ladder into an **ODD switch negotiation**. The island declares the current operating domain unsatisfiable and **names no target**; the HPC selects a domain it can meet and declares it through [`H4`](#7-new-nodes-to-add-on-the-hpc); the island verifies that answer against its own measured envelope *and* against the vehicle's measured behaviour. [B1](#b1--degrade-the-ads-when-the-odd-cannot-be-held) gains a **Demand** row, an **Acceptance test** row and both exits, and becomes the only behaviour that returns the vehicle to normal L4 operation — in a narrower domain than it started in. Adds `T_ack` and the safety timeout `T_odd`, the latter bounded from above by `t_margin − t_pullover`. *(2)* Makes the **takeover explicit**: when `T_odd` expires the successor is chosen by what the island still *has*, not by what the HPC did wrong — blackout → [B4](#b4--emergency-stop-when-the-island-is-blind), HPC lost → [B2](#b2--keep-the-vehicle-in-its-lane-after-loss-of-the-hpc), otherwise → [B3](#b3--pull-over-if-the-odd-continues-to-fail), tested in that order (§3.2). *(3)* Defines **`v_hold` as a ramp** rather than a constant. It is the running minimum of five bounds, monotone non-increasing within an episode, decaying to `v_entry` so that escalation from [B2](#b2--keep-the-vehicle-in-its-lane-after-loss-of-the-hpc) to [B3](#b3--pull-over-if-the-odd-continues-to-fail) costs no further deceleration time: the hold window becomes preparation instead of dead time. *(4)* Gives [B3](#b3--pull-over-if-the-odd-continues-to-fail) a **second refuge source**. When [`H8`](#7-new-nodes-to-add-on-the-hpc) offers none, [`N18`](#63-pull-over-mrm-after-hpc-loss) detects a lateral clearance from island sensing alone — always `EMERGENCY_ONLY`, never displacing a nominated refuge, bounded by `T_refuge` — and the three outcomes are held apart: *found*, *positively none* (→ in-lane stop, the corridor still in hand) and *inconclusive* (→ [B4](#b4--emergency-stop-when-the-island-is-blind), because an inconclusive search is a capability statement). *(5)* Adds the §6.4 **Unsatisfiable** rung and its six-step verification, §5.3 rung 1b, and new material on [`H4`](#7-new-nodes-to-add-on-the-hpc), [`H8`](#7-new-nodes-to-add-on-the-hpc), [`N18`](#63-pull-over-mrm-after-hpc-loss), [`N19`](#64-odd-degradation-on-weather-and-visibility) and the §8 interface tables. Adds open decisions 17 and 18. **Marker yellow continues to mark everything new since 20260827**, so this revision's material is highlighted alongside 20260903's rather than in place of it. |
 | 20260912 | 2026-09-12 | **Editorial revision**, superseding version 20260903. Adds to [§4](#4-autoware-nodes-allocated-to-the-safety-island) a five-phase figure series elaborating the node allocation — Autoware as it stands, the same graph abstracted, the same boxes after the island, what changed at node level, and the island alone. No normative change: no behaviour, node, interface row or open decision is added, removed or altered |
 | 20260903 | 2026-09-03 | **Major revision**, superseding version 20260827. *(1)* Adds **[B4](#b4--emergency-stop-when-the-island-is-blind)** as the fourth declared behaviour: what the island does when it has lost the sensing that [B2](#b2--keep-the-vehicle-in-its-lane-after-loss-of-the-hpc) and [B3](#b3--pull-over-if-the-odd-continues-to-fail) both depend on. Emergency stop was previously only step 3b of the §5.3 graded reaction and the bottom rung of the §6.3 abort ladder; it is now *declared*, with its own trigger, deadline, sensor rung and traceability row. *(2)* Admits the **first optional HPC-produced input** — the object list of [§3.5](#35-optional-enrichment-the-hpc-object-list) — which all four behaviours may use under the new **monotone-conservatism** rule, through the optional node [`N20`](#62-island-safety-sensing). *(3)* **Corrects a misconception about termination:** [B3](#b3--pull-over-if-the-odd-continues-to-fail) was written as *the* terminal behaviour. Both [B3](#b3--pull-over-if-the-odd-continues-to-fail) and [B4](#b4--emergency-stop-when-the-island-is-blind) end the drive cycle and neither gives it back; they differ in *where* the vehicle stops and on what evidence, not in whether the drive continues (§3.2). *(4)* **Both terminal behaviours now raise the hazard lamps at entry**, not at standstill, and the indicator conflict this creates for [B3](#b3--pull-over-if-the-odd-continues-to-fail) is recorded for the WG. *(5)* Corrects the claim that [B4](#b4--emergency-stop-when-the-island-is-blind) has no edge out: its one successor is `SAFE_STOP`, and what it has no edge to is any behaviour above it. *(6)* Adds the §6.3 **abort-ladder illustration** — each rung down removes a requirement and never adds one. Adds open decisions 15 and 16. Material new since 20260827 is marked in **marker yellow** throughout this document and the three artefacts built from it. |
@@ -149,7 +149,7 @@ traceable to one of them.
 
 <mark>Each behaviour is written below against the full [D8](#1-inputs-already-fixed-by-the-wg) ranking. The two design branches of [D10](#1-inputs-already-fixed-by-the-wg) each carry only part of that set, and [§9.5](#95-two-design-branches-least-cost-and-maximum-safety) states how every behaviour is adjusted on each: the speed, the ODD and the evidence it can claim.</mark>
 
-Each behaviour below closes with the island's node graph lit for it — phase 5 of the §10 series, one page per behaviour, drawn by the convention of [layers/L4SafetyIsland-Layers.md](layers/L4SafetyIsland-Layers.md). The <mark>six</mark> pages are collected in [layers/L4SafetyIsland-Behaviours.pdf](layers/L4SafetyIsland-Behaviours.pdf). <mark>The pages for [B5](#b5--tele-operation-from-the-remote-command-centre) and [B6](#b6--manual-joystick-control-without-streamed-sensing) are drawn from their §3.3 rows as they stand; they will be redrawn with the detailed design.</mark>
+Each behaviour below closes with the island's node graph lit for it — phase 5 of the §10 series, one page per behaviour, drawn by the convention of [layers/L4SafetyIsland-Layers.md](layers/L4SafetyIsland-Layers.md). The <mark>six</mark> pages are collected in [layers/L4SafetyIsland-Behaviours.pdf](layers/L4SafetyIsland-Behaviours.pdf). <mark>The pages for [B5](#b5--tele-operation-from-the-remote-command-centre) and [B6](#b6--manual-joystick-control-without-streamed-sensing) follow their §3.3 rows and the stage-1 detailed design of [§6.6](#66-detailed-design-of-b5-and-b6).</mark>
 
 ---
 
@@ -516,7 +516,7 @@ fault code so the event recorder and the HARA can tell them apart.</mark>
 
 #### B5 — Tele-operation from the remote command centre
 
-<mark>*Declared; detailed design pending ([D9](#1-inputs-already-fixed-by-the-wg), open decision 19).*</mark>
+<mark>*Detailed design in [§6.6](#66-detailed-design-of-b5-and-b6): stage 1, entered from standstill. Open decision 19 holds what remains.*</mark>
 
 <mark>[B5](#b5--tele-operation-from-the-remote-command-centre) hands the driving task to a person at the **remote command and control centre (RCC)**. It is how a
 vehicle that has ended its drive in [B3](#b3--pull-over-if-the-odd-continues-to-fail) or [B4](#b4--emergency-stop-when-the-island-is-blind) — or that the ADS can no longer continue — is moved
@@ -531,17 +531,17 @@ extra steps, so [B5](#b5--tele-operation-from-the-remote-command-centre) is admi
 
 | | |
 | :-- | :-- |
-| <mark>**Trigger**</mark> | <mark>The RCC requests control and [`N3`](#61-supervision-state-and-fallback) grants it. Proposed origins: `SAFE_STOP` — recovery after [B3](#b3--pull-over-if-the-odd-continues-to-fail) or [B4](#b4--emergency-stop-when-the-island-is-blind) — and the in-lane stop once at standstill. Taking over a *moving* vehicle, from `ADS_ACTIVE` or from [B1](#b1--degrade-the-ads-when-the-odd-cannot-be-held)–[B3](#b3--pull-over-if-the-odd-continues-to-fail), is open decision 19(a)</mark> |
+| <mark>**Trigger**</mark> | <mark>The RCC requests control and [`N3`](#61-supervision-state-and-fallback) grants it. Proposed origins: `SAFE_STOP` — recovery after [B3](#b3--pull-over-if-the-odd-continues-to-fail) or [B4](#b4--emergency-stop-when-the-island-is-blind) — and the in-lane stop once at standstill. Taking over a *moving* vehicle, from `ADS_ACTIVE` or from [B1](#b1--degrade-the-ads-when-the-odd-cannot-be-held)–[B3](#b3--pull-over-if-the-odd-continues-to-fail), is left for stage 2 (open decision 19(a)). The session handshake is in [§6.6](#66-detailed-design-of-b5-and-b6)</mark> |
 | <mark>**Precondition**</mark> | <mark>An authenticated RCC session on [`N21`](#65-remote-command-and-control-link-and-local-control-port), with measured round-trip latency and stream age inside their bounds · the camera valid ([`N17`](#62-island-safety-sensing)) · no [B6](#b6--manual-joystick-control-without-streamed-sensing) active</mark> |
 | <mark>**Authority**</mark> | <mark>The remote driver commands; the island executes and bounds. Commands arrive on [`N21`](#65-remote-command-and-control-link-and-local-control-port) and enter [`I1`](#41-migration-list) as the **remote** command source, validated by [`I8`](#41-migration-list) and [`N10`](#61-supervision-state-and-fallback) like any other (§10.4)</mark> |
 | <mark>**Streamed to the RCC**</mark> | <mark>[`N22`](#65-remote-command-and-control-link-and-local-control-port): forward camera, compressed to a bounded bit rate — required · radar tracks — rung B up · ultrasonic near-field clearance — rung C up · [`N4`](#61-supervision-state-and-fallback) ego state · the island's state and fault summary</mark> |
-| <mark>**Speed**</mark> | <mark>`v_teleop`, bounded by the measured end-to-end latency — camera to RCC screen, and command back to the actuator — and by the range the stream shows: the vehicle must be able to stop inside what the remote driver could see, *after* the latency has elapsed. Values are open decision 19(b)</mark> |
+| <mark>**Speed**</mark> | <mark>`v_teleop`, bounded by the measured end-to-end latency — camera to RCC screen, and command back to the actuator — and by the range the stream shows: the vehicle must be able to stop inside what the remote driver could see, *after* the latency has elapsed: `v_teleop` = min(20 km/h, `v_vis`), recomputed at 10 Hz from the measured command age ([§6.6](#66-detailed-design-of-b5-and-b6)). The values are for ratification in open decision 19(b)</mark> |
 | <mark>**Guards that stay armed**</mark> | <mark>[`I19`](#41-migration-list) AEB · [`I20`](#41-migration-list) near-field, rung C up · [`N10`](#61-supervision-state-and-fallback) envelope · [`N9`](#61-supervision-state-and-fallback) actuator supervision. The remote driver cannot override them</mark> |
-| <mark>**Link loss**</mark> | <mark>Heartbeat or stream age beyond `T_link` → the island takes authority back and stops: the **in-lane stop** under [B2](#b2--keep-the-vehicle-in-its-lane-after-loss-of-the-hpc)'s control law if the camera still sees the lane, **[B4](#b4--emergency-stop-when-the-island-is-blind)** if it does not — the same capability-first test as every other downward edge. Never "continue on the last command"</mark> |
-| <mark>**Exit**</mark> | <mark>The RCC releases control at standstill → `SAFE_STOP`. Handing the drive back to the ADS after a remote recovery is open decision 19(c)</mark> |
+| <mark>**Link loss**</mark> | <mark>No valid command or heartbeat for `T_link` = 300 ms, or a command more than 1.0 s old by the frame-stamp echo → the island takes authority back and stops: the **in-lane stop** under [B2](#b2--keep-the-vehicle-in-its-lane-after-loss-of-the-hpc)'s control law if the camera still sees the lane, **[B4](#b4--emergency-stop-when-the-island-is-blind)** if it does not — the same capability-first test as every other downward edge. Never "continue on the last command"</mark> |
+| <mark>**Exit**</mark> | <mark>The RCC releases control at standstill → `SAFE_STOP`. From there the RCC may also re-engage the ADS, once the HPC is re-qualified and the ODD is satisfiable ([§6.6](#66-detailed-design-of-b5-and-b6), open decision 19(c))</mark> |
 | <mark>**Observable output**</mark> | <mark>`OperationModeState` = `REMOTE` — a mode Autoware already defines</mark> |
 | <mark>**Minimum sensor rung** (§9.4)</mark> | <mark>**A** — the camera, which is what the remote driver watches. Radar and ultrasonic are streamed where fitted</mark> |
-| <mark>**Pending**</mark> | <mark>Link technology and redundancy; the latency budget, `T_link` and `v_teleop`; security of the RCC session (authentication, replay, command integrity end to end); whether [B5](#b5--tele-operation-from-the-remote-command-centre) may take over a moving vehicle; the RCC's human-factors requirements</mark> |
+| <mark>**Still open**</mark> | <mark>Link technology and redundancy; who owns the keys and certificates; stage 2 — taking over a moving vehicle, and a path-based remote-assistance mode; the RCC's human-factors requirements (open decision 19)</mark> |
 
 ![B5 on the island's node graph: what B5 runs on in full colour, what it only passes through in half-tone, the rest of the island faded](layers/L4SafetyIsland-Layer6-B5-TeleOperation.png)
 
@@ -549,7 +549,7 @@ extra steps, so [B5](#b5--tele-operation-from-the-remote-command-centre) is admi
 
 #### B6 — Manual joystick control without streamed sensing
 
-<mark>*Declared; detailed design pending ([D9](#1-inputs-already-fixed-by-the-wg), open decision 20).*</mark>
+<mark>*Detailed design in [§6.6](#66-detailed-design-of-b5-and-b6): stage 1, entered from standstill. Open decision 20 holds what remains.*</mark>
 
 <mark>[B6](#b6--manual-joystick-control-without-streamed-sensing) is the manual fallback for when there is no stream to watch. An operator **within sight of the
 vehicle** drives it with a joystick connected to the island's **local control port** — by cable, or over a
@@ -560,16 +560,16 @@ tele-operation are both unavailable.</mark>
 
 | | |
 | :-- | :-- |
-| <mark>**Trigger**</mark> | <mark>The local operator takes control on [`N23`](#65-remote-command-and-control-link-and-local-control-port) — device paired, dead-man held. Proposed origins: `SAFE_STOP`, and [B5](#b5--tele-operation-from-the-remote-command-centre) — **local presence pre-empts the remote driver**. Taking over a moving vehicle is open decision 20(a)</mark> |
+| <mark>**Trigger**</mark> | <mark>The local operator takes control on [`N23`](#65-remote-command-and-control-link-and-local-control-port) — device paired, dead-man held. Proposed origins: `SAFE_STOP`, and [B5](#b5--tele-operation-from-the-remote-command-centre) — **local presence pre-empts the remote driver**. A moving vehicle is never taken over: a moving [B5](#b5--tele-operation-from-the-remote-command-centre) is stopped first ([§6.6](#66-detailed-design-of-b5-and-b6), open decision 20(a))</mark> |
 | <mark>**Precondition**</mark> | <mark>A paired local device on [`N23`](#65-remote-command-and-control-link-and-local-control-port) with its link heartbeat inside `T_local` · the vehicle at standstill on entry</mark> |
 | <mark>**Authority**</mark> | <mark>The operator commands through [`I1`](#41-migration-list)'s **local** command source, which outranks the remote one. [`I8`](#41-migration-list) and [`N10`](#61-supervision-state-and-fallback) still validate</mark> |
 | <mark>**Sensing**</mark> | <mark>None required and none streamed. Island sensors that are still valid keep guarding — [`I19`](#41-migration-list), and [`I20`](#41-migration-list) on [`N15`](#62-island-safety-sensing)'s near-field clearance</mark> |
-| <mark>**Speed**</mark> | <mark>Creep only: `v_local`, proposed at walking pace (~5 km/h), so that the vehicle stays inside the operator's sight and the radio's range. Open decision 20(b)</mark> |
-| <mark>**Release or link loss**</mark> | <mark>Dead-man released, the joystick's stop pressed, or the local link silent beyond `T_local` → immediate stop at the emergency rate on [B4](#b4--emergency-stop-when-the-island-is-blind)'s actuator path ([`I6`](#41-migration-list), then [`I5`](#41-migration-list)). From a creep the stop is well under a metre</mark> |
+| <mark>**Speed**</mark> | <mark>Creep only: `v_local`, proposed at walking pace (~5 km/h), so that the vehicle stays inside the operator's sight and the radio's range: 5 km/h forward, 3 km/h in reverse, 0.5 m/s² ([§6.6](#66-detailed-design-of-b5-and-b6), open decision 20(b))</mark> |
+| <mark>**Release or link loss**</mark> | <mark>Dead-man released, the joystick's stop pressed, or the local link silent beyond `T_local` = 200 ms → immediate stop at the emergency rate on [B4](#b4--emergency-stop-when-the-island-is-blind)'s actuator path ([`I6`](#41-migration-list), then [`I5`](#41-migration-list)). From 5 km/h the stop is about 0.85 m, all latencies included</mark> |
 | <mark>**Exit**</mark> | <mark>The operator releases control at standstill → `SAFE_STOP`</mark> |
 | <mark>**Observable output**</mark> | <mark>`OperationModeState` = `LOCAL` — a mode Autoware already defines</mark> |
 | <mark>**Minimum sensor rung** (§9.4)</mark> | <mark>**0** — no island sensor is required</mark> |
-| <mark>**Pending**</mark> | <mark>The device and the radio — band, range, pairing, interference; where the wired port sits on the vehicle; `v_local` and `T_local`; the integrity level of the joystick path; whether [B6](#b6--manual-joystick-control-without-streamed-sensing) may take over a moving vehicle</mark> |
+| <mark>**Still open**</mark> | <mark>The radio band and range; where the wired port sits on the vehicle; certifying the device to IEC 62745 at PL d; the hardwired emergency-stop line (open decision 20)</mark> |
 
 ![B6 on the island's node graph: what B6 runs on in full colour, what it only passes through in half-tone, the rest of the island faded](layers/L4SafetyIsland-Layer6-B6-Joystick.png)
 
@@ -661,9 +661,9 @@ automated behaviour ends at `SAFE_STOP`, and none of them leaves it. [B5](#b5--t
 of `SAFE_STOP` short of the end of the drive cycle, and each needs a person to take it — the remote driver
 over the RCC link, or the operator at the vehicle. Both return to `SAFE_STOP` when released, and both
 fall back onto the automated floor when their link fails: [B5](#b5--tele-operation-from-the-remote-command-centre) to the in-lane stop or to [B4](#b4--emergency-stop-when-the-island-is-blind), by the
-same capability-first test; [B6](#b6--manual-joystick-control-without-streamed-sensing) straight to a stop. [B6](#b6--manual-joystick-control-without-streamed-sensing) pre-empts [B5](#b5--tele-operation-from-the-remote-command-centre). Whether either may also take over
-a *moving* vehicle is pending (open decisions 19 and 20), so the diagram draws only the entries from
-standstill.</mark>
+same capability-first test; [B6](#b6--manual-joystick-control-without-streamed-sensing) straight to a stop. [B6](#b6--manual-joystick-control-without-streamed-sensing) pre-empts [B5](#b5--tele-operation-from-the-remote-command-centre). Stage 1 enters both from standstill only
+([§6.6](#66-detailed-design-of-b5-and-b6)); taking over a *moving* vehicle is stage 2. [B5](#b5--tele-operation-from-the-remote-command-centre) also carries the one edge from `SAFE_STOP` back to
+automated driving: once the HPC is re-qualified and the ODD is satisfiable, the RCC may re-engage the ADS.</mark>
 
 ```mermaid
 stateDiagram-v2
@@ -691,7 +691,8 @@ stateDiagram-v2
     B5 --> InLane: RCC link lost — camera sees the lane
     B5 --> B4: RCC link lost and camera lost — or camera lost
     SafeStop --> B6: local operator takes control — dead-man held
-    B5 --> B6: local operator pre-empts the remote driver
+    B5 --> B6: local operator pre-empts the remote driver — B5 stopped first
+    SafeStop --> Nominal: re-engaged from the RCC — HPC re-qualified, ODD satisfiable
     B6 --> SafeStop: released at standstill — or dead-man / link lost, stopped at once
     SafeStop --> [*]
 
@@ -701,8 +702,8 @@ stateDiagram-v2
     B3: B3 — pull over to refuge — H8 nominated, else found by the camera, bounded by T_refuge
     InLane: In-lane stop (B2 authority, obstacle-aware, on the camera's corridor)
     B4: B4 — blind emergency stop, no lateral authority — also entered on actuator fault (N9) or AEB (I19)
-    B5: B5 — tele-operation from the RCC on streamed camera · radar · ultrasonic — detailed design pending
-    B6: B6 — manual joystick, wired or short-range radio, no stream, creep speed — detailed design pending
+    B5: B5 — remote driving from the RCC on streamed camera · radar · ultrasonic, v_teleop ≤ 20 km/h, stop on T_link
+    B6: B6 — joystick, wired or short-range radio, no stream, 5 km/h, stop on release or T_local
     SafeStop: SAFE_STOP — secured, gear P
 ```
 
@@ -1715,7 +1716,7 @@ width, never the behaviour itself.</mark>
 | :-- | :-- | :-- | :-- | :-- | :-- |
 | <mark>**1 — mandatory**</mark> | **Forward camera** (low resolution, mono) | GMSL or 100BASE-T1, direct | Lane boundaries <mark>+ road edge / kerb + drivable lateral space</mark> | 10–20 Hz | Lane geometry for lateral containment <mark>under [B2](#b2--keep-the-vehicle-in-its-lane-after-loss-of-the-hpc); lane lines and the pull-over space for [B3](#b3--pull-over-if-the-odd-continues-to-fail); the contrast and lane-continuity evidence of §6.4. **The sensor whose loss is [B4](#b4--emergency-stop-when-the-island-is-blind).**</mark> **See open decision 8** — classical CV vs. a certified smart camera emitting lane/object lists. |
 | <mark>**2**</mark> | **Radar** — forward, <mark>and rear-corner on the pull-over side</mark> | CAN FD (native track output) | Object tracks — range, range-rate, azimuth | 20 Hz | Longitudinal obstacle range and closing speed <mark>— AEB's point cloud when no lidar is fitted</mark>. Works in rain, fog, darkness, low sun. <mark>Rear-corner: closing traffic on the pull-over side. Lifts [B2](#b2--keep-the-vehicle-in-its-lane-after-loss-of-the-hpc) to the highway `v_odd` and [B3](#b3--pull-over-if-the-odd-continues-to-fail) above ~30 km/h.</mark> |
-| <mark>**3**</mark> | <mark>**Ultrasonic array**</mark> | <mark>LIN / DSI3 via a sensor interface, or CAN FD</mark> | <mark>Echo distance per sector, near field (≲ 5 m)</mark> | <mark>10–20 Hz</mark> | <mark>Near-field clearance for the final metres of [B3](#b3--pull-over-if-the-odd-continues-to-fail) and a tight-to-kerb end; creep and standstill release; [`I20`](#41-migration-list)'s near-field footprint through [`N15`](#62-island-safety-sensing). Blind beyond a few metres: it buys a terminal condition, not speed.</mark> |
+| <mark>**3**</mark> | <mark>**Ultrasonic array**</mark> | <mark>LIN / DSI3 via a sensor interface, or CAN FD</mark> | <mark>Echo distance per sector, near field, up to about 5 m</mark> | <mark>10–20 Hz</mark> | <mark>Near-field clearance for the final metres of [B3](#b3--pull-over-if-the-odd-continues-to-fail) and a tight-to-kerb end; creep and standstill release; [`I20`](#41-migration-list)'s near-field footprint through [`N15`](#62-island-safety-sensing). Blind beyond a few metres: it buys a terminal condition, not speed.</mark> |
 | <mark>**4**</mark> | **Island IMU <mark>/ GNSS</mark>** | direct / CAN FD | Vehicle dynamics <mark>; position and road-class corroboration</mark> | 100 Hz <mark>/ 10 Hz</mark> | <mark>A dynamics channel independent of the chassis bus for [N4](#61-supervision-state-and-fallback); the friction estimate of §6.4; GNSS corroborates the ODD class downward.</mark> |
 | <mark>**5 — optional**</mark> | **2D lidar** (single-plane scanner) | 100BASE-T1 or RS-422, direct | Planar scan, ~1080 points | 10–40 Hz | Free-space distance ahead, in-path occupancy, lateral clearance <mark>— as a *confirming* channel: it may disqualify a space or add a hazard, never qualify a refuge or supply a corridor</mark>. Deterministic, classical processing, no learning. |
 | <mark>— *(vehicle)*</mark> | <mark>**Chassis signals** — wheel speed, steering report, ESC yaw rate and acceleration</mark> | <mark>vehicle bus, via [`I16`](#41-migration-list)</mark> | <mark>Vehicle dynamics</mark> | <mark>100 Hz</mark> | <mark>Not an island sensor and not ranked: present on every vehicle. The floor [N4](#61-supervision-state-and-fallback) — and therefore [B4](#b4--emergency-stop-when-the-island-is-blind) — stands on.</mark> |
@@ -2062,8 +2063,8 @@ it is false. This is the concrete payoff of making fallback capability observabl
 
 ### 6.5 Remote command and control link and local control port
 
-<mark>*New by [D9](#1-inputs-already-fixed-by-the-wg); the detailed design is pending, and these three nodes sit outside the counts of §4 and
-§9.4 until it is done.*</mark>
+<mark>*New by [D9](#1-inputs-already-fixed-by-the-wg). Their detailed design is proposed in [§6.6](#66-detailed-design-of-b5-and-b6); these three nodes stay outside the counts of §4 and
+§9.4 until the WG accepts it.*</mark>
 
 <mark>The island carries its own path to the remote command and control centre (RCC), and its own port
 for a local joystick, so that a person can drive the vehicle when the HPC cannot — [B5](#b5--tele-operation-from-the-remote-command-centre) from the RCC on
@@ -2085,6 +2086,227 @@ the open alternative is a hardware encoder in the modem module, fed the camera d
 <mark>**[`N21`](#65-remote-command-and-control-link-and-local-control-port) terminates the RCC link on the island, not on the HPC.** A tele-operation path that ran through
 the HPC would fail with it, which is exactly when [B5](#b5--tele-operation-from-the-remote-command-centre) is wanted. The HPC may still use its own link for
 fleet services; what crosses [`N21`](#65-remote-command-and-control-link-and-local-control-port) is only what [B5](#b5--tele-operation-from-the-remote-command-centre) and the RCC's view of the island need.</mark>
+
+### 6.6 Detailed design of B5 and B6
+
+<mark>This section turns the two declarations of [D9](#1-inputs-already-fixed-by-the-wg) into a design the WG can review. It covers how each
+behaviour starts, what the person may command, how fast the vehicle may go, how the island notices a
+failing link or an absent operator, and how it stops. It is written for **stage 1**: both behaviours
+start only from a standstill. Taking over a moving vehicle, and a path-based remote-assistance mode,
+are left for stage 2 (open decisions 19 and 20). Everything here reuses the island's existing command
+path: the gate [`I1`](#41-migration-list), validation by [`I8`](#41-migration-list) and [`N10`](#61-supervision-state-and-fallback), and the stop operators [`I6`](#41-migration-list) and [`I5`](#41-migration-list). The only
+additions are the three nodes of §6.5 and the interface in [§8.6](#86-the-rcc-link-and-the-local-control-port).</mark>
+
+#### Principles both behaviours follow
+
+1. <mark>**The person decides, the island bounds.** Every remote or local command passes through [`I8`](#41-migration-list) and
+   [`N10`](#61-supervision-state-and-fallback) and the gate's rate limits, like any other command source. AEB [`I19`](#41-migration-list), the near-field guard
+   [`I20`](#41-migration-list) and actuator supervision [`N9`](#61-supervision-state-and-fallback) stay armed, and no command can override them.</mark>
+2. <mark>**A silent link means stop, never "keep going".** Each command is valid for a short, fixed time.
+   When commands stop arriving, the island first brings the speed setpoint to zero, then takes
+   authority back and stops.</mark>
+3. <mark>**Stopping uses the paths that already exist.** [B5](#b5--tele-operation-from-the-remote-command-centre) falls back to the in-lane stop if the camera
+   still sees the lane, and to [B4](#b4--emergency-stop-when-the-island-is-blind) if it does not. That is the same test every other downward edge in
+   §3.2 applies. [B6](#b6--manual-joystick-control-without-streamed-sensing) stops at once through [`I6`](#41-migration-list) and [`I5`](#41-migration-list).</mark>
+4. <mark>**Local presence beats remote presence.** An operator standing at the vehicle outranks a driver at
+   the RCC. The gate's source ranking already encodes this (§10.4).</mark>
+
+#### B5 — remote driving from the RCC
+
+<mark>**What the remote driver sends.** A steering-angle setpoint and a signed speed setpoint at 50 Hz, plus
+a gear request, the indicators, the hazard lamps and the horn. Every command carries a dead-man flag
+and a **frame stamp**: the island's capture time of the newest video frame the driver had on screen when
+the command was issued. [`N21`](#65-remote-command-and-control-link-and-local-control-port) checks each command (see below), turns it into an Autoware `Control`
+message and publishes it as the gate's **remote** source. The command is a *setpoint*, not a pedal
+position: [`I1`](#41-migration-list) applies its own rate limits, and [`I8`](#41-migration-list) and [`N10`](#61-supervision-state-and-fallback) validate it, exactly as they do for
+the HPC's commands.</mark>
+
+<mark>**The frame-stamp echo.** The island and the RCC do not share a clock. They do not need to: the frame
+stamp is a time the island itself wrote, so [`N21`](#65-remote-command-and-control-link-and-local-control-port) can compute</mark>
+
+> <mark>*command age* = island time now − frame stamp echoed in the command</mark>
+
+<mark>on its own clock alone. That one number covers the whole loop the safety argument depends on:
+capture, encoding, the uplink, display, the driver's reaction, and the downlink. [`N21`](#65-remote-command-and-control-link-and-local-control-port) checks it on
+every command, so the island knows how old the picture was that each command was decided on.</mark>
+
+<mark>**Session state.** A **[B5](#b5--tele-operation-from-the-remote-command-centre)** session has six states. [`N3`](#61-supervision-state-and-fallback) owns the transitions; [`N21`](#65-remote-command-and-control-link-and-local-control-port) supplies the
+evidence for each of them.</mark>
+
+```mermaid
+stateDiagram-v2
+    direction LR
+    [*] --> Requested: RCC requests control
+    Requested --> Handshake: session authenticated
+    Handshake --> Active: N3 grants — standstill, camera valid, link in bounds, driver confirmed the vehicle
+    Handshake --> [*]: refused — reason reported to the RCC
+    Active --> Degraded: command age or RTT above the soft bound
+    Degraded --> Active: back within bounds for 2 s
+    Active --> LinkLost: no valid command or heartbeat for T_link
+    Degraded --> LinkLost: no valid command or heartbeat for T_link, or command age above the hard bound
+    LinkLost --> [*]: island stops — in-lane stop if the camera sees the lane, else B4
+    Active --> Released: RCC releases at standstill
+    Released --> [*]: SAFE_STOP
+```
+
+- <mark>**Requested → Handshake.** The RCC opens an authenticated session on [`N21`](#65-remote-command-and-control-link-and-local-control-port). The request names the
+  vehicle and the operator.</mark>
+- <mark>**Handshake → Active.** [`N3`](#61-supervision-state-and-fallback) grants control only when all the grant conditions below hold. On the
+  grant, [`I2`](#41-migration-list) and [`I3`](#41-migration-list) switch the command mode to `REMOTE`. The brake stays applied until the first
+  valid command arrives with the dead-man held.</mark>
+- <mark>**Degraded.** The link still works but is slow. The island cuts the speed limit `v_teleop` (below)
+  and tells the RCC why. It does not stop: a slow link is a reason to drive slower, not a reason to
+  strand the vehicle.</mark>
+- <mark>**LinkLost.** No valid command or heartbeat for `T_link`, or a command whose age exceeds the hard
+  bound. The island takes authority back and stops: the in-lane stop through [`N7`](#61-supervision-state-and-fallback) and [`I13`](#41-migration-list) if the
+  camera still sees the lane, [B4](#b4--emergency-stop-when-the-island-is-blind) if it does not.</mark>
+- <mark>**Released.** The RCC releases control at standstill. [`I5`](#41-migration-list) secures the vehicle, gear P, and the
+  island is in `SAFE_STOP`.</mark>
+
+<mark>**The grant conditions.** [`N3`](#61-supervision-state-and-fallback) grants **[B5](#b5--tele-operation-from-the-remote-command-centre)** only when all of these hold:</mark>
+
+- <mark>the vehicle is at standstill (stage 1);</mark>
+- <mark>[`N17`](#62-island-safety-sensing) holds the camera valid;</mark>
+- <mark>the round-trip time over the last 2 s is within the bound, and the stream is up and fresh;</mark>
+- <mark>no **[B6](#b6--manual-joystick-control-without-streamed-sensing)** session is active;</mark>
+- <mark>the remote driver has confirmed the vehicle's identity, shown on the stream as an overlay that the
+  island generates.</mark>
+
+<mark>**Checks on every remote command.** [`N21`](#65-remote-command-and-control-link-and-local-control-port) drops any command that fails one of the following, and
+counts the drops. A run of drops longer than `T_link` is a link loss.</mark>
+
+| <mark>Check</mark> | <mark>Bound (proposal)</mark> | <mark>On failure</mark> |
+| :-- | :-- | :-- |
+| <mark>Session ID, sequence number, MAC and CRC (profile SI-E2E/R, §8.6)</mark> | <mark>exact; replay window 64</mark> | <mark>drop, and raise a security event to [`N8`](#61-supervision-state-and-fallback)</mark> |
+| <mark>Dead-man held</mark> | <mark>every command</mark> | <mark>speed setpoint to zero; brake held</mark> |
+| <mark>Command validity</mark> | <mark>100 ms per command</mark> | <mark>setpoint decays to zero speed; then `T_link`</mark> |
+| <mark>Command age (frame-stamp echo)</mark> | <mark>soft 600 ms · hard 1.0 s</mark> | <mark>soft: Degraded, `v_teleop` cut · hard: LinkLost</mark> |
+| <mark>Heartbeat</mark> | <mark>10 Hz; `T_link` = 300 ms</mark> | <mark>LinkLost</mark> |
+| <mark>Steering and speed range</mark> | <mark>within `v_teleop` and the vehicle's limits</mark> | <mark>clamp, and report it to the RCC</mark> |
+
+<mark>**How fast — `v_teleop`.** The vehicle must be able to stop inside the free road ahead, counting
+everything that happens before the remote driver's braking reaches the wheels:</mark>
+
+> <mark>`v_teleop` = min( `v_cap`, `v_vis` ), where `v_vis` solves
+> `v · t_loop + v² / (2 · a_tele) = d_free − 2 m`</mark>
+
+- <mark>`t_loop` is the measured command age plus the island and actuator time. As a design value it is
+  1.8 s: 0.23 s from capture to display, 1.2 s driver reaction, 0.12 s downlink, 0.04 s through the
+  island (§9.2) and 0.2 s actuator response.</mark>
+- <mark>`a_tele` = 3 m/s² is a firm stop, not an emergency one.</mark>
+- <mark>`d_free` is the free distance ahead that the island itself has verified: [`N16`](#62-island-safety-sensing)'s free-space range,
+  capped at the range at which the camera stream can still show an obstacle. The driver is never
+  allowed to drive faster than the island can confirm is clear.</mark>
+- <mark>`v_cap` is **20 km/h** for stage 1.</mark>
+
+| <mark>`d_free`</mark> | <mark>10 m</mark> | <mark>15 m</mark> | <mark>20 m</mark> | <mark>30 m</mark> | <mark>40 m</mark> |
+| :-- | :-- | :-- | :-- | :-- | :-- |
+| <mark>`v_vis` at `t_loop` = 1.8 s</mark> | <mark>12 km/h</mark> | <mark>18 km/h</mark> | <mark>23 km/h</mark> | <mark>31 km/h</mark> | <mark>38 km/h</mark> |
+
+<mark>[`N21`](#65-remote-command-and-control-link-and-local-control-port) recomputes `v_teleop` at 10 Hz from the *measured* command age, so a slow link lowers the speed
+automatically. The limit falls at no more than 2 m/s² and rises only after 2 s of stable link. The two
+branches of §9.5 differ here only through `d_free`. On Least-Cost, the camera and the 2D lidar confirm
+about 15–20 m, which gives roughly 18–23 km/h, and the vehicle drives **forward only**. On
+Maximum-Safety, `v_cap` binds, and the rear radars allow reversing at creep speed.</mark>
+
+<mark>**What the remote driver sees.** [`N22`](#65-remote-command-and-control-link-and-local-control-port) streams the forward camera, compressed to a bounded bit rate:
+about 2 Mbit/s on Least-Cost, where the camera encodes it, and up to 6 Mbit/s on Maximum-Safety. Each
+frame carries its capture stamp. [`N22`](#65-remote-command-and-control-link-and-local-control-port) also sends radar tracks and ultrasonic clearances where fitted,
+[`N4`](#61-supervision-state-and-fallback)'s ego state, the granted `v_teleop`, and which island guards are armed. The vehicle-identity
+overlay and the `v_teleop` readout are generated by the island, not by the RCC, so the driver sees what
+the island will enforce.</mark>
+
+<mark>**Reaction budget.** Link loss is detected after `T_link` = 300 ms. The decision and the stop command
+take 40 ms more (§9.2). From 20 km/h, stopping at `a_tele` then takes about 7 m in total, inside the
+free range `v_teleop` was computed for. An obstacle the island sees itself is handled faster still,
+by [`I19`](#41-migration-list), whatever the link is doing.</mark>
+
+<mark>**Leaving B5.** The normal exit is release at standstill into `SAFE_STOP`. **[B5](#b5--tele-operation-from-the-remote-command-centre)** may also hand the
+drive back to the ADS, but only from `SAFE_STOP` and only with all of these:
+- the RCC requests it;
+- [`N2`](#61-supervision-state-and-fallback) has re-qualified the HPC over the same confirmation window as **[B2](#b2--keep-the-vehicle-in-its-lane-after-loss-of-the-hpc)**'s hand-back (open decision
+  14);
+- [`N19`](#64-odd-degradation-on-weather-and-visibility) reports the ODD satisfiable, and [`H4`](#7-new-nodes-to-add-on-the-hpc) has declared an `active_odd`.</mark>
+
+<mark>The island then engages `AUTONOMOUS` through the normal Autoware path. Without this edge, every remote
+recovery would end the drive cycle, including one that followed a transient fault (open decision
+19(c)).</mark>
+
+#### B6 — joystick control at the vehicle
+
+<mark>**The device.** A handheld joystick controller of the kind used for cableless control of machinery. It
+has proportional steering and speed controls, a forward / neutral / reverse selector, horn and hazards,
+and two safety controls:
+- a **three-position enabling switch**, the dead-man: commands count only while it is held in the
+  middle position;
+- a latching **emergency-stop** button.</mark>
+
+<mark>The controller connects to [`N23`](#65-remote-command-and-control-link-and-local-control-port) either **by cable**, on a CAN FD connector on the vehicle, or
+**through a radio receiver** plugged into the same connector. So [`N23`](#65-remote-command-and-control-link-and-local-control-port) sees one interface whichever is
+used. The radio controller and receiver should follow IEC 62745 (cableless control of machinery),
+which requires a stop on loss of communication and a defined pairing procedure. Its stop functions
+should meet PL d or the equivalent.</mark>
+
+<mark>**Pairing and entry.**
+- Pairing needs physical presence: a button or key switch on the vehicle, pressed while the vehicle
+  is at standstill.
+- Only one device is paired at a time, and pairing ends when control is released.
+- **[B6](#b6--manual-joystick-control-without-streamed-sensing)** starts when the paired device's enabling switch is held and [`N3`](#61-supervision-state-and-fallback) grants `LOCAL`.
+- If a **[B5](#b5--tele-operation-from-the-remote-command-centre)** session is active, the local request **pre-empts** it. If the vehicle is moving under
+  **[B5](#b5--tele-operation-from-the-remote-command-centre)**, the island first stops it, then grants `LOCAL` at standstill.</mark>
+
+<mark>**What the operator commands.** A steering setpoint and a speed setpoint, at 50 Hz on the SI-E2E/B
+profile, which fits CAN FD:
+- speed limited to `v_local` = **5 km/h** forward and **3 km/h** in reverse;
+- acceleration limited to 0.5 m/s², and the steering rate limited.</mark>
+
+<mark>**[B6](#b6--manual-joystick-control-without-streamed-sensing)** reverses on the operator's eyes alone, on both branches. Any island sensors still valid keep
+[`I19`](#41-migration-list) and [`I20`](#41-migration-list) armed, but **[B6](#b6--manual-joystick-control-without-streamed-sensing)** requires none of them: it runs at rung 0.</mark>
+
+<mark>**When the island stops.** The island stops at once, at the emergency rate through [`I6`](#41-migration-list), then [`I5`](#41-migration-list)
+secures:
+- the enabling switch is released, or squeezed through to its third position;
+- the emergency-stop button is pressed;
+- the local link is silent for `T_local` = **200 ms**.</mark>
+
+<mark>From 5 km/h that stop is about 0.85 m including all latencies; from 3 km/h in reverse, about 0.45 m.
+The emergency-stop button should also be **wired directly to the actuator gateway's stop input**, in
+the same way as the §8.5 FSI fault line, so that the stop does not depend on island software. That is a
+Part-2 hardware item.</mark>
+
+<mark>**Leaving B6.** The operator releases control at standstill, and the island goes to `SAFE_STOP`.
+**[B6](#b6--manual-joystick-control-without-streamed-sensing)** never hands the drive back to the ADS. A vehicle recovered by hand is checked by a person before
+it is automated again.</mark>
+
+#### Where the new nodes run
+
+| <mark>Node</mark> | <mark>Partition (§9.1)</mark> | <mark>Why</mark> |
+| :-- | :-- | :-- |
+| <mark>[`N21`](#65-remote-command-and-control-link-and-local-control-port) command and liveness path</mark> | <mark>**P1**, 50 Hz</mark> | <mark>It feeds a command source and supervises a link whose loss triggers a stop</mark> |
+| <mark>[`N21`](#65-remote-command-and-control-link-and-local-control-port) status uplink</mark> | <mark>**P4**</mark> | <mark>Telemetry; it may be shed first</mark> |
+| <mark>[`N22`](#65-remote-command-and-control-link-and-local-control-port) streamer</mark> | <mark>**P3s**, a new band just below P3</mark> | <mark>The heaviest load and the least critical. It must never take time from P0–P2, and during **[B5](#b5--tele-operation-from-the-remote-command-centre)** the P3 nominal controller is idle anyway. On the X5H it runs on the application cluster (§9.5)</mark> |
+| <mark>[`N23`](#65-remote-command-and-control-link-and-local-control-port) local control</mark> | <mark>**P1**, 50 Hz</mark> | <mark>Same reasoning as [`N21`](#65-remote-command-and-control-link-and-local-control-port)'s command path</mark> |
+
+#### Failure modes and what the island does
+
+| <mark>Failure</mark> | <mark>Detected by</mark> | <mark>Island response</mark> |
+| :-- | :-- | :-- |
+| <mark>Cellular link drops</mark> | <mark>[`N21`](#65-remote-command-and-control-link-and-local-control-port): `T_link`</mark> | <mark>LinkLost: in-lane stop, or **[B4](#b4--emergency-stop-when-the-island-is-blind)** without the camera</mark> |
+| <mark>Link slows down, or video freezes at the RCC</mark> | <mark>[`N21`](#65-remote-command-and-control-link-and-local-control-port): command age (frame-stamp echo)</mark> | <mark>Degraded: `v_teleop` cut; LinkLost above the hard bound</mark> |
+| <mark>Replayed, forged or corrupted command</mark> | <mark>[`N21`](#65-remote-command-and-control-link-and-local-control-port): SI-E2E/R checks</mark> | <mark>Command dropped, security event to [`N8`](#61-supervision-state-and-fallback); repeated drops are a link loss</mark> |
+| <mark>Remote driver lets go or is incapacitated</mark> | <mark>dead-man flag</mark> | <mark>Speed setpoint to zero, brake held</mark> |
+| <mark>Driver steers toward an obstacle</mark> | <mark>[`I19`](#41-migration-list), [`I20`](#41-migration-list), [`N10`](#61-supervision-state-and-fallback)</mark> | <mark>Braked or vetoed whatever the command says</mark> |
+| <mark>Camera lost during **[B5](#b5--tele-operation-from-the-remote-command-centre)**</mark> | <mark>[`N17`](#62-island-safety-sensing)</mark> | <mark>**[B4](#b4--emergency-stop-when-the-island-is-blind)**: the driver is no longer shown a validated picture</mark> |
+| <mark>Two RCC sessions request the same vehicle</mark> | <mark>[`N21`](#65-remote-command-and-control-link-and-local-control-port): one session at a time</mark> | <mark>The second request is refused</mark> |
+| <mark>Local operator arrives during **[B5](#b5--tele-operation-from-the-remote-command-centre)**</mark> | <mark>[`N23`](#65-remote-command-and-control-link-and-local-control-port)</mark> | <mark>**[B6](#b6--manual-joystick-control-without-streamed-sensing)** pre-empts: stop first, then `LOCAL`</mark> |
+| <mark>Joystick radio drops</mark> | <mark>[`N23`](#65-remote-command-and-control-link-and-local-control-port): `T_local`</mark> | <mark>Immediate stop, [`I6`](#41-migration-list) then [`I5`](#41-migration-list)</mark> |
+| <mark>Joystick enabling switch released, or emergency stop pressed</mark> | <mark>[`N23`](#65-remote-command-and-control-link-and-local-control-port), plus the hardwired stop</mark> | <mark>Immediate stop</mark> |
+| <mark>Actuators not tracking, in either behaviour</mark> | <mark>[`N9`](#61-supervision-state-and-fallback)</mark> | <mark>**[B4](#b4--emergency-stop-when-the-island-is-blind)**</mark> |
+
+<mark>These rows join the Part-4 fault-injection matrix of §12.
+</mark>
+
+---
 
 ## 7. New nodes to add on the HPC
 
@@ -2188,7 +2410,7 @@ in EN 50159 and ISO 26262-6, and it is unchanged by the choice of implementation
 | Addressing error, wrong interface | Data ID |
 | Truncation, malformed payload | Length field |
 
-**Two profiles are enough for the whole interface:**
+**Two profiles are enough for the HPC link and the vehicle bus** <mark>— the RCC link, an open network, adds a third, SI-E2E/R ([§8.6](#86-the-rcc-link-and-the-local-control-port))</mark>:
 
 | | **SI-E2E/A** — Ethernet, variable length | **SI-E2E/B** — compact status and CAN FD |
 | :-- | :-- | :-- |
@@ -2216,6 +2438,57 @@ bypassing Linux and the TSN switch entirely. Consumed by [N8](#61-supervision-st
 the HPC is an Orin/Thor-class part, this is the sub-millisecond detection path; the TSN heartbeat
 (20 ms age limit) is the vehicle-level-independent one.
 
+### 8.6 The RCC link and the local control port
+
+<mark>Two interfaces cross the island boundary that are not the HPC link: the cellular session to the RCC,
+which ends at [`N21`](#65-remote-command-and-control-link-and-local-control-port), and the local control port, which ends at [`N23`](#65-remote-command-and-control-link-and-local-control-port). Both carry commands into the gate,
+so both carry the same end-to-end protection as §8.4. The RCC link needs more than that.</mark>
+
+<mark>**RCC → island (into [`N21`](#65-remote-command-and-control-link-and-local-control-port)).**</mark>
+
+| <mark>Signal</mark> | <mark>Topic</mark> | <mark>Type</mark> | <mark>Rate</mark> | <mark>Age limit</mark> | <mark>Protection</mark> |
+| :-- | :-- | :-- | :-- | :-- | :-- |
+| <mark>Session control</mark> | <mark>`/si/rcc/session`</mark> | <mark>*new* `RccSessionControl` (request / confirm vehicle / release, operator ID, vehicle ID echo)</mark> | <mark>on event + 1 Hz</mark> | <mark>1 s</mark> | <mark>SI-E2E/R</mark> |
+| <mark>Remote drive command</mark> | <mark>`/si/rcc/drive_cmd`</mark> | <mark>*new* `RemoteDriveCommand` (steering angle, signed speed setpoint, gear, dead-man, indicators / hazards / horn, **frame stamp**)</mark> | <mark>50 Hz</mark> | <mark>100 ms per command; command age ≤ 1.0 s</mark> | <mark>SI-E2E/R</mark> |
+| <mark>RCC heartbeat</mark> | <mark>`/si/rcc/heartbeat`</mark> | <mark>*new* `RccHeartbeat` (echo of the island's last ping, for the round-trip time)</mark> | <mark>10 Hz</mark> | <mark>`T_link` = 300 ms</mark> | <mark>SI-E2E/R</mark> |
+
+<mark>**Island → RCC (out of [`N21`](#65-remote-command-and-control-link-and-local-control-port), with [`N22`](#65-remote-command-and-control-link-and-local-control-port)'s stream).**</mark>
+
+| <mark>Signal</mark> | <mark>Topic</mark> | <mark>Type</mark> | <mark>Rate</mark> | <mark>Protection</mark> |
+| :-- | :-- | :-- | :-- | :-- |
+| <mark>Video</mark> | <mark>media channel</mark> | <mark>H.264 / H.265, a capture stamp on every frame; ≈ 2 Mbit/s (Least-Cost) to ≤ 6 Mbit/s (Maximum-Safety)</mark> | <mark>10–30 Hz</mark> | <mark>SRTP; the frame stamp is checked at the RCC and echoed back</mark> |
+| <mark>Tele-operation telemetry</mark> | <mark>`/si/rcc/telemetry`</mark> | <mark>*new* `TeleopTelemetry` (radar tracks, ultrasonic clearances, [`N4`](#61-supervision-state-and-fallback) ego state, granted `v_teleop`, guards armed)</mark> | <mark>20 Hz</mark> | <mark>SI-E2E/R</mark> |
+| <mark>Link state</mark> | <mark>`/si/rcc/link_state`</mark> | <mark>*new* `RccLinkState` (round-trip time, command age, stream age, `v_teleop` and why it was cut)</mark> | <mark>10 Hz</mark> | <mark>SI-E2E/R</mark> |
+| <mark>Island status and assistance request</mark> | <mark>`/si/rcc/status`</mark> | <mark>*new* `IslandStatusSummary` (island mode, fault summary, MRM outcome, refuge source, GNSS position, assistance request after **[B3](#b3--pull-over-if-the-odd-continues-to-fail)** or **[B4](#b4--emergency-stop-when-the-island-is-blind)**)</mark> | <mark>1 Hz + on change</mark> | <mark>SI-E2E/R</mark> |
+
+<mark>**Local port ↔ [`N23`](#65-remote-command-and-control-link-and-local-control-port)** (CAN FD, by cable or through the radio receiver).</mark>
+
+| <mark>Signal</mark> | <mark>Direction</mark> | <mark>Content</mark> | <mark>Rate</mark> | <mark>Age limit</mark> | <mark>Protection</mark> |
+| :-- | :-- | :-- | :-- | :-- | :-- |
+| <mark>Local drive command</mark> | <mark>device → island</mark> | <mark>steering setpoint, speed setpoint, F / N / R, enabling-switch position, emergency-stop state, horn / hazards</mark> | <mark>50 Hz</mark> | <mark>`T_local` = 200 ms</mark> | <mark>SI-E2E/B</mark> |
+| <mark>Device status</mark> | <mark>device → island</mark> | <mark>paired device ID, battery, radio signal strength</mark> | <mark>5 Hz</mark> | <mark>1 s</mark> | <mark>SI-E2E/B</mark> |
+| <mark>Island feedback</mark> | <mark>island → device</mark> | <mark>mode granted, speed, fault, `v_local`</mark> | <mark>5 Hz</mark> | <mark>—</mark> | <mark>SI-E2E/B</mark> |
+
+<mark>**Why the RCC link needs a third profile.** The HPC link and the local port run on closed networks. A
+cellular link is an **open** network in the sense of EN 50159: anyone who can reach it can try to
+inject a message, and a CRC is not a defence against an attacker who can compute one. So the RCC link
+carries **SI-E2E/R**, which splits the job in two:</mark>
+
+|  | <mark>**SI-E2E/R** — RCC link</mark> |
+| :-- | :-- |
+| <mark>Safety part — the same threats as §8.4</mark> | <mark>Data ID 16-bit · sequence counter **32-bit**, with a 64-message replay window · length 16-bit · CRC-32</mark> |
+| <mark>Age</mark> | <mark>The **frame-stamp echo**. It is measured on the island's own clock, so no shared time base is needed</mark> |
+| <mark>Session</mark> | <mark>Session ID 32-bit, bound to one authenticated operator and one vehicle</mark> |
+| <mark>Security part — masquerade and tampering</mark> | <mark>A message authentication code from the secure channel: TLS 1.3 or DTLS 1.3, mutually authenticated. The keys are held in the island processor's hardware security module</mark> |
+| <mark>Overhead</mark> | <mark>≈ 27 bytes, plus the channel's</mark> |
+
+<mark>A message that fails the security part is a **security** event; one that fails the safety part is a
+**safety** event. [`N21`](#65-remote-command-and-control-link-and-local-control-port) raises both to [`N8`](#61-supervision-state-and-fallback), and repeated failures of either kind count as a link loss.
+Commands and telemetry travel over the authenticated session. Video travels on its own SRTP media
+channel, because it is the bulk of the traffic and its integrity matters less than its age, which the
+frame-stamp echo checks anyway.
+</mark>
+
 ---
 
 ## 9. Execution partitions, timing, and middleware realisation
@@ -2229,10 +2502,11 @@ as five executors with fixed priority bands:
 | Partition | Nodes | Period | Priority band |
 | :-- | :-- | :-- | :-- |
 | **P0 — Safety core** | [I1](#41-migration-list), [I2](#41-migration-list), [I3](#41-migration-list), [I5](#41-migration-list), [I6](#41-migration-list), [I7](#41-migration-list), [I16](#41-migration-list), [N1](#61-supervision-state-and-fallback), [N2](#61-supervision-state-and-fallback), [N3](#61-supervision-state-and-fallback), [N4](#61-supervision-state-and-fallback), [N8](#61-supervision-state-and-fallback) | 10 ms (100 Hz) | 1 — highest |
-| **P1 — Supervision + fallback control** | [I8](#41-migration-list), [I13](#41-migration-list), [N5](#61-supervision-state-and-fallback), [N7](#61-supervision-state-and-fallback), [N9](#61-supervision-state-and-fallback), [N10](#61-supervision-state-and-fallback), [N12](#61-supervision-state-and-fallback), [N18](#63-pull-over-mrm-after-hpc-loss) | 20 ms (50 Hz) | 2 |
+| **P1 — Supervision + fallback control** | [I8](#41-migration-list), [I13](#41-migration-list), [N5](#61-supervision-state-and-fallback), [N7](#61-supervision-state-and-fallback), [N9](#61-supervision-state-and-fallback), [N10](#61-supervision-state-and-fallback), [N12](#61-supervision-state-and-fallback), [N18](#63-pull-over-mrm-after-hpc-loss) <mark>· [N21](#65-remote-command-and-control-link-and-local-control-port) command path, [N23](#65-remote-command-and-control-link-and-local-control-port) *([§6.6](#66-detailed-design-of-b5-and-b6))*</mark> | 20 ms (50 Hz) | 2 |
 | **P2 — Safety sensing** | [I19](#41-migration-list), [I20](#41-migration-list), [N6](#61-supervision-state-and-fallback), [N13](#62-island-safety-sensing), [N14](#62-island-safety-sensing), [N15](#62-island-safety-sensing), [N16](#62-island-safety-sensing), [N17](#62-island-safety-sensing), [N19](#64-odd-degradation-on-weather-and-visibility), [N20](#62-island-safety-sensing) *(optional)* | 20–50 ms (20–50 Hz) | 3 |
 | **P3 — Nominal control** | [I9](#41-migration-list), [I10](#41-migration-list), [I11](#41-migration-list), [I12](#41-migration-list), [I14](#41-migration-list), [I15](#41-migration-list) | 20–30 ms (33–50 Hz) | 4 |
-| **P4 — Non-real-time** | [N11](#61-supervision-state-and-fallback), telemetry egress | 100–1000 ms | 5 — lowest |
+| <mark>**P3s — Tele-operation streaming**</mark> | <mark>[N22](#65-remote-command-and-control-link-and-local-control-port) *([§6.6](#66-detailed-design-of-b5-and-b6))*</mark> | <mark>33–100 ms (10–30 Hz)</mark> | <mark>4b — below P3; idle outside [B5](#b5--tele-operation-from-the-remote-command-centre)</mark> |
+| **P4 — Non-real-time** | [N11](#61-supervision-state-and-fallback), telemetry egress <mark>· [N21](#65-remote-command-and-control-link-and-local-control-port) status uplink</mark> | 100–1000 ms | 5 — lowest |
 
 The priority order encodes the degradation strategy, and it is deliberate that **the QM nominal
 controller sits below ASIL-B sensing.** Under overload the island sheds the expensive MPC first: the
@@ -3249,28 +3523,33 @@ These change the allocation and should be settled before Part 2.
    (§3.1) and it must be implementable: [`N18`](#63-pull-over-mrm-after-hpc-loss) has to be able to say which of the two it
    reached, and a WG that judges that undecidable in practice collapses both to [B4](#b4--emergency-stop-when-the-island-is-blind) and should say
    so explicitly.</mark>
-19. <mark>**[B5](#b5--tele-operation-from-the-remote-command-centre) tele-operation and the RCC link ([D9](#1-inputs-already-fixed-by-the-wg), §6.5).** Declared, not designed.
-   *(a)* **May [B5](#b5--tele-operation-from-the-remote-command-centre) take over a moving vehicle?** The design proposes entry from standstill only —
-   recovery after [B3](#b3--pull-over-if-the-odd-continues-to-fail) or [B4](#b4--emergency-stop-when-the-island-is-blind) — because a hand-over at speed adds the remote driver's situational
-   latency to the link's. Taking over from [B1](#b1--degrade-the-ads-when-the-odd-cannot-be-held)–[B3](#b3--pull-over-if-the-odd-continues-to-fail) would let the RCC avoid a stop altogether, and would
-   need its own hand-over protocol.
-   *(b)* **The latency budget and `v_teleop`.** End-to-end latency — camera to RCC screen, and command back
-   to the actuator — sets how fast a remote driver can safely drive. `T_link`, the jitter allowance and
-   the speed law that turns measured latency into `v_teleop` are unset.
-   *(c)* **Hand-back to the ADS.** Whether a remote recovery may end in `ADS_ACTIVE` rather than
-   `SAFE_STOP`, and what evidence of HPC health it must show first — the [B2](#b2--keep-the-vehicle-in-its-lane-after-loss-of-the-hpc) → [B1](#b1--degrade-the-ads-when-the-odd-cannot-be-held) confirmation window
-   is the obvious template.
-   *(d)* **The communication module itself** — modem, antenna, SIM and redundancy; whether video is
-   encoded on the island SoC or in the module; and the security of the session: authentication, replay
-   protection, and how a remote command's integrity is carried end to end into [`I1`](#41-migration-list).</mark>
-20. <mark>**[B6](#b6--manual-joystick-control-without-streamed-sensing) manual joystick control ([D9](#1-inputs-already-fixed-by-the-wg), §6.5).** Declared, not designed.
-   *(a)* **Entry from motion.** Proposed from standstill only, and pre-empting [B5](#b5--tele-operation-from-the-remote-command-centre). A local operator
-   taking a moving vehicle is the scenario of a test track, not a public road, and may belong to a
-   separate operating mode.
-   *(b)* **`v_local` and `T_local`.** Walking pace (~5 km/h) is proposed, and `T_local` must make the stop
-   on a lost radio link shorter than the distance at which the operator loses sight.
-   *(c)* **The device** — wired port location, radio band, range and pairing; and the integrity level of
-   the joystick path, which runs at rung 0 with no island sensor to catch an operator error.</mark>
+19. <mark>**[B5](#b5--tele-operation-from-the-remote-command-centre) remote driving and the RCC link ([D9](#1-inputs-already-fixed-by-the-wg), [§6.6](#66-detailed-design-of-b5-and-b6), [§8.6](#86-the-rcc-link-and-the-local-control-port)).** The stage-1 design is proposed;
+   these items remain.
+   *(a)* **Stage 2: taking over a moving vehicle.** Stage 1 enters from standstill only. A moving take-over —
+   from [B2](#b2--keep-the-vehicle-in-its-lane-after-loss-of-the-hpc)'s hold, say, so the RCC could avoid a stop altogether — needs its own hand-over protocol and
+   puts the remote driver's situational lag on top of the link's.
+   *(b)* **Ratify the stage-1 numbers:** `T_link` = 300 ms; a command-age bound of 600 ms soft and 1.0 s hard;
+   `v_cap` = 20 km/h; a design loop time of 1.8 s, including 1.2 s of driver reaction; `a_tele` = 3 m/s².
+   *(c)* **Re-engaging the ADS from `SAFE_STOP`.** Proposed: allowed, on the RCC's request, once the HPC
+   has been re-qualified over [B2](#b2--keep-the-vehicle-in-its-lane-after-loss-of-the-hpc)'s confirmation window and the ODD is satisfiable. Otherwise every
+   remote recovery ends the drive cycle, including one that followed a transient fault.
+   *(d)* **The module and its keys.** One modem with two SIMs for stage 1, or two modems on two carriers.
+   Who owns the certificate authority for operator and vehicle keys. Whether zenoh-pico's TLS transport
+   is adequate, or whether [N21](#65-remote-command-and-control-link-and-local-control-port) terminates TLS itself.
+   *(e)* **Stage 2: a path-based remote-assistance mode**, in which the driver sends a short path and the
+   island's fallback tier ([N7](#61-supervision-state-and-fallback) → [I13](#41-migration-list)) drives it. It tolerates latency far better than
+   direct driving, and needs a remote-path input on [N7](#61-supervision-state-and-fallback).
+   *(f)* **The RCC's human-factors requirements**, and the operator-to-vehicle ratio: 1 : 1 while [B5](#b5--tele-operation-from-the-remote-command-centre) is
+   active is proposed.</mark>
+20. <mark>**[B6](#b6--manual-joystick-control-without-streamed-sensing) joystick control ([D9](#1-inputs-already-fixed-by-the-wg), [§6.6](#66-detailed-design-of-b5-and-b6)).** The stage-1 design is proposed; these items remain.
+   *(a)* **Entry from motion.** Proposed: never — a moving [B5](#b5--tele-operation-from-the-remote-command-centre) is stopped before `LOCAL` is granted. A
+   test-track mode that allows it belongs outside this design.
+   *(b)* **Ratify the numbers:** `v_local` = 5 km/h forward and 3 km/h in reverse; 0.5 m/s²;
+   `T_local` = 200 ms.
+   *(c)* **The device.** Certification of the radio controller to IEC 62745, with its stop functions at
+   PL d; the radio band, which differs by region; and where the wired CAN FD port sits on the vehicle.
+   *(d)* **The hardwired emergency stop** from the controller's receiver to the actuator gateway, so
+   that the stop does not depend on island software. A Part-2 hardware item.</mark>
 21. <mark>**Least-Cost hardware ([D10](#1-inputs-already-fixed-by-the-wg), [§9.5](#95-two-design-branches-least-cost-and-maximum-safety)).**
    *(a)* **Which microcontroller.** The recommendation is the **NXP S32Z2**. It has the most headroom for
    [`N14`](#62-island-safety-sensing)'s pixel work (Neon plus a DSP), and it is the S32Z-class target nano-ros is already verified for.
