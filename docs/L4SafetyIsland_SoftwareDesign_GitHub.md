@@ -14,12 +14,16 @@ Reference Design WG · draft for WG review · **Version 20261023**
 > the ladder drawn as a state diagram, the criticality tiers and the five-phase node allocation,
 > one figure per slide. Read it first for the shape of the design; read this document for the
 > arguments, the interface tables and the open decisions.
+>
+> <mark>**The whole document as PDF.** The [reading edition](review/L4SafetyIsland-DesignForReading.pdf) — normal
+> margins, for reading — and the [review edition](review/L4SafetyIsland-DesignForReview.pdf) — numbered lines, a wide
+> margin and a comment log, for sending comments back. Both are generated from this document and carry its version.</mark>
 
 **Revision history — major revisions only.**
 
 | Version | Issued | Status and scope |
 | :-- | :-- | :-- |
-| **20261023** | 2026-10-23 | **Major revision**, superseding version 20260918; content from the WG session of 2026-10-17. *(1)* **Ranks the island sensors** ([D8](#1-inputs-already-fixed-by-the-wg)): forward camera **mandatory**, radar second, ultrasonic third, IMU / GNSS fourth, 2D lidar **optional**. A behaviour may require only the camera; a lower-ranked sensor buys speed or ODD width, never the behaviour itself. Every behaviour above [B4](#b4--emergency-stop-when-the-island-is-blind) is rewritten against the camera, the §9.4 sensor rungs are re-cut to the ranking (B2 and B4 survive at rung A and rung 0 respectively; B3 drops to rung A at or below ~30 km/h), and the AEB trigger moves from the 2D lidar to radar. *(2)* **[B2](#b2--keep-the-vehicle-in-its-lane-after-loss-of-the-hpc) first slows to the safe speed of the current ODD**, `v_odd` — of the order of 60 km/h on a highway and 30 km/h on a city road, the class latched from [`H4`](#7-new-nodes-to-add-on-the-hpc)'s last `active_odd` — and its hold window `T_hold` is set at **8–15 s** per road class, long enough to contain the descent to `v_odd` and still leave the HPC time to return. The lane must be observable **by the camera**: the buffered map corridor refines it but cannot stand in for it, and the heading / yaw-rate tube is withdrawn as a corridor source. When `T_hold` expires, [B2](#b2--keep-the-vehicle-in-its-lane-after-loss-of-the-hpc) hands over to exactly one successor — [B3](#b3--pull-over-if-the-odd-continues-to-fail) if the camera still sees the lane, [B4](#b4--emergency-stop-when-the-island-is-blind) if it does not. *(3)* **[B3](#b3--pull-over-if-the-odd-continues-to-fail) searches with the camera**: [`N14`](#62-island-safety-sensing) holds the lane lines, finds the pull-over space between the outer lane line and the road edge, and bounds the lateral move; radar confirms what is coming on the pull-over side and may disqualify a space, never qualify one. *(4)* **[B4](#b4--emergency-stop-when-the-island-is-blind) is redefined as the loss of the camera** (or of the lane lines beyond the bridging budget); a surviving radar keeps AEB armed and may steepen the ramp, but does not lift the blackout. *(5)* **Declares two human-driven behaviours** on a new island communication module to the remote command and control centre and a local control port ([D9](#1-inputs-already-fixed-by-the-wg)): [B5](#b5--tele-operation-from-the-remote-command-centre) **tele-operation** from the RCC on streamed camera, radar and ultrasonic, and [B6](#b6--manual-joystick-control-without-streamed-sensing) **manual joystick control** over a wired or short-range radio link with no stream. Adds §6.5 and the nodes [`N21`](#65-remote-command-and-control-link-and-local-control-port) `si_rcc_link`, [`N22`](#65-remote-command-and-control-link-and-local-control-port) `si_teleop_streamer` and [`N23`](#65-remote-command-and-control-link-and-local-control-port) `si_local_control`; their stage-1 detailed design is *(7)* below. *(6)* **Carries the design in two branches** ([D10](#1-inputs-already-fixed-by-the-wg), [§9.5](#95-two-design-branches-least-cost-and-maximum-safety)): **Least-Cost** — camera, ultrasonic, 2D lidar and IMU / GNSS on an S32Z2, AURIX TC4x or Stellar microcontroller, with no radar, which makes it a city-road, fair-weather branch — and **Maximum-Safety** — camera, four radars, ultrasonic and IMU / GNSS on an R-Car X5H; every behaviour is adjusted to each branch's sensors. Also restores the missing ultrasonic row of §6.2. *(7)* **Gives [B5](#b5--tele-operation-from-the-remote-command-centre) and [B6](#b6--manual-joystick-control-without-streamed-sensing) a stage-1 detailed design** ([§6.6](#66-detailed-design-of-b5-and-b6), [§8.6](#86-the-rcc-link-and-the-local-control-port)): [B6](#b6--manual-joystick-control-without-streamed-sensing) entered from standstill, [B5](#b5--tele-operation-from-the-remote-command-centre) from standstill or — on the ADS's remote take-over request when the HPC behaves abnormally — from a moving vehicle in [B1](#b1--degrade-the-ads-when-the-odd-cannot-be-held)–[B3](#b3--pull-over-if-the-odd-continues-to-fail); [B5](#b5--tele-operation-from-the-remote-command-centre) drives on bounded setpoints at a `v_teleop` set by the latency measured through the frame-stamp echo, is stopped by the island after `T_link` = 300 ms of silence, and may re-engage the ADS from `SAFE_STOP`; [B6](#b6--manual-joystick-control-without-streamed-sensing) runs a cableless-machinery joystick at 5 km/h and stops after `T_local` = 200 ms. Adds the SI-E2E/R profile for the open RCC link, and the P3s partition. Adds open decisions 19 to 23, and reshapes 3, 4, 8, 13, 14, 15 and 18. **Marker yellow continues to mark everything new since 20260827**, so this revision's material is highlighted alongside that of 20260903 and 20260918. |
+| **20261023** | 2026-10-23 | **Major revision**, superseding version 20260918; content from the WG session of 2026-10-17. *(1)* **Ranks the island sensors** ([D8](#1-inputs-already-fixed-by-the-wg)): forward camera **mandatory**, radar second, ultrasonic third, IMU / GNSS fourth, 2D lidar **optional**. A behaviour may require only the camera; a lower-ranked sensor buys speed or ODD width, never the behaviour itself. Every behaviour above [B4](#b4--emergency-stop-when-the-island-is-blind) is rewritten against the camera, the §9.4 sensor rungs are re-cut to the ranking (B2 and B4 survive at rung A and rung 0 respectively; B3 drops to rung A at or below ~30 km/h), and the AEB trigger moves from the 2D lidar to radar. *(2)* **[B2](#b2--keep-the-vehicle-in-its-lane-after-loss-of-the-hpc) first slows to the safe speed of the current ODD**, `v_odd` — of the order of 60 km/h on a highway and 30 km/h on a city road, the class latched from [`H4`](#7-new-nodes-to-add-on-the-hpc)'s last `active_odd` — and its hold window `T_hold` is set at **8–15 s** per road class, long enough to contain the descent to `v_odd` and still leave the HPC time to return. The lane must be observable **by the camera**: the buffered map corridor refines it but cannot stand in for it, and the heading / yaw-rate tube is withdrawn as a corridor source. When `T_hold` expires, [B2](#b2--keep-the-vehicle-in-its-lane-after-loss-of-the-hpc) hands over to exactly one successor — [B3](#b3--pull-over-if-the-odd-continues-to-fail) if the camera still sees the lane, [B4](#b4--emergency-stop-when-the-island-is-blind) if it does not. *(3)* **[B3](#b3--pull-over-if-the-odd-continues-to-fail) searches with the camera**: [`N14`](#62-island-safety-sensing) holds the lane lines, finds the pull-over space between the outer lane line and the road edge, and bounds the lateral move; radar confirms what is coming on the pull-over side and may disqualify a space, never qualify one. *(4)* **[B4](#b4--emergency-stop-when-the-island-is-blind) is redefined as the loss of the camera** (or of the lane lines beyond the bridging budget); a surviving radar keeps AEB armed and may steepen the ramp, but does not lift the blackout. *(5)* **Declares two human-driven behaviours** on a new island communication module to the remote command and control centre and a local control port ([D9](#1-inputs-already-fixed-by-the-wg)): [B5](#b5--tele-operation-from-the-remote-command-centre) **tele-operation** from the RCC on streamed camera, radar and ultrasonic, and [B6](#b6--manual-joystick-control-without-streamed-sensing) **manual joystick control** over a wired or short-range radio link with no stream. Adds §6.5 and the nodes [`N21`](#65-remote-command-and-control-link-and-local-control-port) `si_rcc_link`, [`N22`](#65-remote-command-and-control-link-and-local-control-port) `si_teleop_streamer` and [`N23`](#65-remote-command-and-control-link-and-local-control-port) `si_local_control`; their stage-1 detailed design is *(7)* below. *(6)* **Carries the design in two branches** ([D10](#1-inputs-already-fixed-by-the-wg), [§9.5](#95-two-design-branches-least-cost-and-maximum-safety)): **Least-Cost** — camera, ultrasonic, 2D lidar and IMU / GNSS on an S32Z2, AURIX TC4x or Stellar microcontroller, with no radar, which makes it a city-road, fair-weather branch — and **Maximum-Safety** — camera, four radars, ultrasonic and IMU / GNSS on an R-Car X5H; every behaviour is adjusted to each branch's sensors. Also restores the missing ultrasonic row of §6.2. *(7)* **Gives [B5](#b5--tele-operation-from-the-remote-command-centre) and [B6](#b6--manual-joystick-control-without-streamed-sensing) a stage-1 detailed design** ([§6.6](#66-detailed-design-of-b5-and-b6), [§8.6](#86-the-rcc-link-and-the-local-control-port)): [B6](#b6--manual-joystick-control-without-streamed-sensing) entered from standstill, [B5](#b5--tele-operation-from-the-remote-command-centre) from standstill or — on the ADS's remote take-over request when the HPC behaves abnormally — from a moving vehicle in [B1](#b1--degrade-the-ads-when-the-odd-cannot-be-held)–[B3](#b3--pull-over-if-the-odd-continues-to-fail); [B5](#b5--tele-operation-from-the-remote-command-centre) drives on bounded setpoints at a `v_teleop` set by the latency measured through the frame-stamp echo, is stopped by the island after `T_link` = 300 ms of silence, and may re-engage the ADS from `SAFE_STOP`; [B6](#b6--manual-joystick-control-without-streamed-sensing) runs a wired joystick pendant at 5 km/h and stops after `T_local` = 200 ms. The RCC communication — module, session, security, video transport — and a radio link for [B6](#b6--manual-joystick-control-without-streamed-sensing) are deferred to the next design. Adds the SI-E2E/R profile for the open RCC link, and the P3s partition. Adds open decisions 19 to 23, and reshapes 3, 4, 8, 13, 14, 15 and 18. **Marker yellow now marks only what is new since 20260918** — the material from the WG session of 2026-10-17 onward; the highlights of earlier revisions are removed. |
 | 20260918 | 2026-09-18 | **Major revision**, superseding version 20260912. *(1)* Recasts [B1](#b1--degrade-the-ads-when-the-odd-cannot-be-held) from a constraint ladder into an **ODD switch negotiation**. The island declares the current operating domain unsatisfiable and **names no target**; the HPC selects a domain it can meet and declares it through [`H4`](#7-new-nodes-to-add-on-the-hpc); the island verifies that answer against its own measured envelope *and* against the vehicle's measured behaviour. [B1](#b1--degrade-the-ads-when-the-odd-cannot-be-held) gains a **Demand** row, an **Acceptance test** row and both exits, and becomes the only behaviour that returns the vehicle to normal L4 operation — in a narrower domain than it started in. Adds `T_ack` and the safety timeout `T_odd`, the latter bounded from above by `t_margin − t_pullover`. *(2)* Makes the **takeover explicit**: when `T_odd` expires the successor is chosen by what the island still *has*, not by what the HPC did wrong — blackout → [B4](#b4--emergency-stop-when-the-island-is-blind), HPC lost → [B2](#b2--keep-the-vehicle-in-its-lane-after-loss-of-the-hpc), otherwise → [B3](#b3--pull-over-if-the-odd-continues-to-fail), tested in that order (§3.2). *(3)* Defines **`v_hold` as a ramp** rather than a constant. It is the running minimum of five bounds, monotone non-increasing within an episode, decaying to `v_entry` so that escalation from [B2](#b2--keep-the-vehicle-in-its-lane-after-loss-of-the-hpc) to [B3](#b3--pull-over-if-the-odd-continues-to-fail) costs no further deceleration time: the hold window becomes preparation instead of dead time. *(4)* Gives [B3](#b3--pull-over-if-the-odd-continues-to-fail) a **second refuge source**. When [`H8`](#7-new-nodes-to-add-on-the-hpc) offers none, [`N18`](#63-pull-over-mrm-after-hpc-loss) detects a lateral clearance from island sensing alone — always `EMERGENCY_ONLY`, never displacing a nominated refuge, bounded by `T_refuge` — and the three outcomes are held apart: *found*, *positively none* (→ in-lane stop, the corridor still in hand) and *inconclusive* (→ [B4](#b4--emergency-stop-when-the-island-is-blind), because an inconclusive search is a capability statement). *(5)* Adds the §6.4 **Unsatisfiable** rung and its six-step verification, §5.3 rung 1b, and new material on [`H4`](#7-new-nodes-to-add-on-the-hpc), [`H8`](#7-new-nodes-to-add-on-the-hpc), [`N18`](#63-pull-over-mrm-after-hpc-loss), [`N19`](#64-odd-degradation-on-weather-and-visibility) and the §8 interface tables. Adds open decisions 17 and 18. **Marker yellow continues to mark everything new since 20260827**, so this revision's material is highlighted alongside 20260903's rather than in place of it. |
 | 20260912 | 2026-09-12 | **Editorial revision**, superseding version 20260903. Adds to [§4](#4-autoware-nodes-allocated-to-the-safety-island) a five-phase figure series elaborating the node allocation — Autoware as it stands, the same graph abstracted, the same boxes after the island, what changed at node level, and the island alone. No normative change: no behaviour, node, interface row or open decision is added, removed or altered |
 | 20260903 | 2026-09-03 | **Major revision**, superseding version 20260827. *(1)* Adds **[B4](#b4--emergency-stop-when-the-island-is-blind)** as the fourth declared behaviour: what the island does when it has lost the sensing that [B2](#b2--keep-the-vehicle-in-its-lane-after-loss-of-the-hpc) and [B3](#b3--pull-over-if-the-odd-continues-to-fail) both depend on. Emergency stop was previously only step 3b of the §5.3 graded reaction and the bottom rung of the §6.3 abort ladder; it is now *declared*, with its own trigger, deadline, sensor rung and traceability row. *(2)* Admits the **first optional HPC-produced input** — the object list of [§3.5](#35-optional-enrichment-the-hpc-object-list) — which all four behaviours may use under the new **monotone-conservatism** rule, through the optional node [`N20`](#62-island-safety-sensing). *(3)* **Corrects a misconception about termination:** [B3](#b3--pull-over-if-the-odd-continues-to-fail) was written as *the* terminal behaviour. Both [B3](#b3--pull-over-if-the-odd-continues-to-fail) and [B4](#b4--emergency-stop-when-the-island-is-blind) end the drive cycle and neither gives it back; they differ in *where* the vehicle stops and on what evidence, not in whether the drive continues (§3.2). *(4)* **Both terminal behaviours now raise the hazard lamps at entry**, not at standstill, and the indicator conflict this creates for [B3](#b3--pull-over-if-the-odd-continues-to-fail) is recorded for the WG. *(5)* Corrects the claim that [B4](#b4--emergency-stop-when-the-island-is-blind) has no edge out: its one successor is `SAFE_STOP`, and what it has no edge to is any behaviour above it. *(6)* Adds the §6.3 **abort-ladder illustration** — each rung down removes a requirement and never adds one. Adds open decisions 15 and 16. Material new since 20260827 is marked in **marker yellow** throughout this document and the three artefacts built from it. |
@@ -61,7 +65,7 @@ These are taken as given from [SafetyIsland_RefDesignWG.pdf](SafetyIsland_RefDes
 | D6 | Every safety-relevant payload carries **end-to-end protection** — CRC, sequence counter, data ID, age; gPTP provides the time base. **AUTOSAR is out of scope: this is an Autoware in-house design** | RFC §"Communication protocol stack"; WG, 2026-08-27 |
 | **D7** | **Low-resolution, high-robustness sensors are connected directly to the island** — 2D lidar, forward camera, ultrasonic, radar — so that the MRM nodes execute without the HPC | WG, 2026-08-27 |
 | <mark>**D8**</mark> | <mark>**Not every island carries every [D7](#1-inputs-already-fixed-by-the-wg) sensor, and they are ranked.** (1) **Forward camera — mandatory.** (2) **Radar** — forward, and rear-corner on the pull-over side. (3) **Ultrasonic array.** (4) **Island IMU / GNSS.** (5) **2D lidar — optional.** A behaviour may *require* only what is mandatory; what a lower-ranked sensor adds is a higher speed or a wider ODD, never the behaviour itself. The proprioceptive chassis signals — wheel speed, steering report, the ESC yaw rate and acceleration — arrive over the vehicle bus and are not island sensors in this ranking</mark> | <mark>WG, 2026-10-17</mark> |
-| <mark>**D9**</mark> | <mark>**The island carries its own communication module to the remote command and control centre (RCC)** — a cellular (LTE / 5G) modem on the island's harness and power rail, not the HPC's — **and a local control port** for a joystick, wired or over a short-range radio link. Two human-driven behaviours are declared on them, [B5](#b5--tele-operation-from-the-remote-command-centre) tele-operation and [B6](#b6--manual-joystick-control-without-streamed-sensing) manual joystick control; their stage-1 detailed design is in [§6.6](#66-detailed-design-of-b5-and-b6)</mark> | <mark>WG, 2026-10-17</mark> |
+| <mark>**D9**</mark> | <mark>**The island carries its own communication module to the remote command and control centre (RCC)** — a cellular (LTE / 5G) modem on the island's harness and power rail, not the HPC's — **and a local control port** for a joystick. Two human-driven behaviours are declared on them, [B5](#b5--tele-operation-from-the-remote-command-centre) tele-operation and [B6](#b6--manual-joystick-control-without-streamed-sensing) manual joystick control; their stage-1 detailed design is in [§6.6](#66-detailed-design-of-b5-and-b6). **In this design the RCC communication is specified only by what [B5](#b5--tele-operation-from-the-remote-command-centre) requires of it; the communication module, the RCC session and its security, and the video transport are deferred to the next design. The local control port is wired; a short-range radio link is deferred to the next design**</mark> | <mark>WG, 2026-10-17; scope, 2026-10-24</mark> |
 | <mark>**D10**</mark> | <mark>**The design is carried in two branches** that share the six behaviours, the node set and the interface contract, and differ in the hardware fitted to the island. **Least-Cost:** forward camera, five ultrasonic sensors, a 2D lidar and an IMU / GNSS on an NXP S32Z2, Infineon AURIX TC4x or ST Stellar microcontroller, with no radar. **Maximum-Safety:** forward camera, four radars (two front, two rear), five ultrasonic sensors and an IMU / GNSS on a Renesas R-Car X5H. How each behaviour is adjusted to each branch's sensors is in [§9.5](#95-two-design-branches-least-cost-and-maximum-safety)</mark> | <mark>Design lead, 2026-10-23</mark> |
 
 Two further facts come from work already completed at NEWSLab and are treated as the engineering
@@ -138,12 +142,12 @@ traceable to one of them.
 
 | ID | Behaviour | One-line statement |
 | :-- | :-- | :-- |
-| **B1** | **Degrade the ADS when the ODD cannot be held** | When the operating envelope is no longer satisfied, <mark>require the ADS to move to an operating domain it *can* satisfy</mark> — progressively constraining it, and demanding that it constrain itself, <mark>until it does</mark> — before any authority is taken. |
+| **B1** | **Degrade the ADS when the ODD cannot be held** | When the operating envelope is no longer satisfied, require the ADS to move to an operating domain it *can* satisfy — progressively constraining it, and demanding that it constrain itself, until it does — before any authority is taken. |
 | **B2** | **Keep the vehicle in its lane after loss of the HPC** | When the HPC is unavailable and [B1](#b1--degrade-the-ads-when-the-odd-cannot-be-held) therefore cannot be used, take authority and hold the vehicle in its current lane — for a bounded window <mark>of typically 8–15 s</mark>, <mark>at a decaying speed the island can itself justify, *first reduced to the safe speed of the current ODD* (e.g. 60 km/h on a highway, 30 km/h on a city road), while staging the exit manoeuvre</mark> — while the lane is still observable <mark>by the island's camera</mark>, pending the HPC's return <mark>or escalation to [B3](#b3--pull-over-if-the-odd-continues-to-fail) or [B4](#b4--emergency-stop-when-the-island-is-blind)</mark>. |
 | **B3** | **Pull over if the ODD continues to fail** | When degradation does not restore the envelope within a declared deadline, bring the vehicle out of the running lane to a standstill in a refuge — <mark>nominated by the HPC where one is offered, detected by the island's own sensors where one is not — with the **camera** tracking the lane lines and finding the space to pull over into</mark>. |
-| <mark>**B4**</mark> | <mark>**Emergency stop when the island is blind**</mark> | <mark>When the island has lost the sensing that [B2](#b2--keep-the-vehicle-in-its-lane-after-loss-of-the-hpc) and [B3](#b3--pull-over-if-the-odd-continues-to-fail) both depend on — **the camera**, the one sensor both may assume ([D8](#1-inputs-already-fixed-by-the-wg)) — decelerate to a standstill where the vehicle already is — no lane keeping, no refuge, no lateral manoeuvre.</mark> |
+| **B4** | **Emergency stop when the island is blind** | <mark>When the island has lost the sensing that [B2](#b2--keep-the-vehicle-in-its-lane-after-loss-of-the-hpc) and [B3](#b3--pull-over-if-the-odd-continues-to-fail) both depend on — **the camera**, the one sensor both may assume ([D8](#1-inputs-already-fixed-by-the-wg)) — decelerate to a standstill where the vehicle already is — no lane keeping, no refuge, no lateral manoeuvre.</mark> |
 | <mark>**B5**</mark> | <mark>**Tele-operation from the remote command centre**</mark> | <mark>A remote driver at the RCC drives the vehicle over the island's communication module, on sensor data the island streams to them — camera, radar and ultrasonic — while the island keeps its own guards armed and stops the vehicle itself if the link fails. *From standstill, or taken over from [B1](#b1--degrade-the-ads-when-the-odd-cannot-be-held)–[B3](#b3--pull-over-if-the-odd-continues-to-fail) on the ADS's request; at most 20 km/h: [§6.6](#66-detailed-design-of-b5-and-b6).*</mark> |
-| <mark>**B6**</mark> | <mark>**Manual joystick control without streamed sensing**</mark> | <mark>An operator with direct sight of the vehicle drives it with a joystick on a wired or short-range radio link, with no sensor stream; the island holds the speed to a creep and stops the vehicle on release or on loss of the link. *Stage 1, from standstill, 5 km/h: [§6.6](#66-detailed-design-of-b5-and-b6).*</mark> |
+| <mark>**B6**</mark> | <mark>**Manual joystick control without streamed sensing**</mark> | <mark>An operator with direct sight of the vehicle drives it with a joystick pendant on a cable, with no sensor stream; the island holds the speed to a creep and stops the vehicle on release or on loss of the link. *Stage 1, from standstill, 5 km/h: [§6.6](#66-detailed-design-of-b5-and-b6).*</mark> |
 
 <mark>**[B1](#b1--degrade-the-ads-when-the-odd-cannot-be-held)–[B4](#b4--emergency-stop-when-the-island-is-blind) are automated; [B5](#b5--tele-operation-from-the-remote-command-centre) and [B6](#b6--manual-joystick-control-without-streamed-sensing) are human-driven.** In the first four the island decides. In the last two a person decides — a remote driver at the RCC, or an operator standing at the vehicle — and the island executes, bounds and guards what that person commands. Both are declared by [D9](#1-inputs-already-fixed-by-the-wg), so that the allocation reserves their nodes, their command sources and their place in the state machine; their sections below give entry, authority, speed, the guards that stay armed, the response to a lost link and the minimum sensor rung, and [§6.6](#66-detailed-design-of-b5-and-b6) holds the stage-1 detailed design.</mark>
 
@@ -155,57 +159,57 @@ Each behaviour below closes with the island's node graph lit for it — phase 5 
 
 #### B1 — Degrade the ADS when the ODD cannot be held
 
-<mark>Read as a constraint ladder, [B1](#b1--degrade-the-ads-when-the-odd-cannot-be-held) is a demand that the ADS *slow down*. That is only its
+Read as a constraint ladder, [B1](#b1--degrade-the-ads-when-the-odd-cannot-be-held) is a demand that the ADS *slow down*. That is only its
 enforcement. [B1](#b1--degrade-the-ads-when-the-odd-cannot-be-held)'s actual object is an **operating domain**: the island measures the world, declares
 that the domain the vehicle is currently being driven in is no longer satisfiable, and requires the HPC
 to move to one that is. The speed cap is what holds the vehicle safe *while* that happens — never what
-resolves it.</mark>
+resolves it.
 
-<mark>The island does not choose the new domain. It does not hold the HPC's catalogue of operating domains,
+The island does not choose the new domain. It does not hold the HPC's catalogue of operating domains,
 does not know which L4 behaviours each of them admits, and choosing between them is planning — which is
-not on the island by [R4](#21-partitioning-rules) and [R5](#21-partitioning-rules). So the exchange is asymmetric, and deliberately so:</mark>
+not on the island by [R4](#21-partitioning-rules) and [R5](#21-partitioning-rules). So the exchange is asymmetric, and deliberately so:
 
-> <mark>**The island declares what the world will support. The HPC declares which domain it will operate
-> in. The island verifies that answer against its own measurements, and accepts it or does not.**</mark>
+> **The island declares what the world will support. The HPC declares which domain it will operate
+> in. The island verifies that answer against its own measurements, and accepts it or does not.**
 
-<mark>That asymmetry is what makes [B1](#b1--degrade-the-ads-when-the-odd-cannot-be-held) the only *exitable* behaviour. [B3](#b3--pull-over-if-the-odd-continues-to-fail) and [B4](#b4--emergency-stop-when-the-island-is-blind) end the drive
+That asymmetry is what makes [B1](#b1--degrade-the-ads-when-the-odd-cannot-be-held) the only *exitable* behaviour. [B3](#b3--pull-over-if-the-odd-continues-to-fail) and [B4](#b4--emergency-stop-when-the-island-is-blind) end the drive
 cycle; [B2](#b2--keep-the-vehicle-in-its-lane-after-loss-of-the-hpc) holds one open. [B1](#b1--degrade-the-ads-when-the-odd-cannot-be-held) is the only behaviour that returns the vehicle to normal L4
 operation — in a narrower domain than the one it started in, driven by the HPC, with the island back to
 supervising. It exits **upward** when the HPC is driving normally inside a domain the island has
 accepted, and **downward** — to [B2](#b2--keep-the-vehicle-in-its-lane-after-loss-of-the-hpc), [B3](#b3--pull-over-if-the-odd-continues-to-fail) or [B4](#b4--emergency-stop-when-the-island-is-blind) — when the safety timeout `T_odd` expires
-without one.</mark>
+without one.
 
 | | |
 | :-- | :-- |
 | **Trigger** | [`N19`](#64-odd-degradation-on-weather-and-visibility) ODD margin falls below threshold (visibility, friction, precipitation, ambient light); or [`N17`](#62-island-safety-sensing) reports sensor degradation; or [`H4`](#7-new-nodes-to-add-on-the-hpc) reports the HPC's own ODD exit; or [`N18`](#63-pull-over-mrm-after-hpc-loss) reports `pull_over_available = false` while margin is already marginal |
 | **Precondition** | **The HPC is alive and responsive.** [B1](#b1--degrade-the-ads-when-the-odd-cannot-be-held) is cooperative by construction: every rung of it is executed by the HPC. If the HPC is unavailable there is nothing to constrain, and the island enters [**B2**](#b2--keep-the-vehicle-in-its-lane-after-loss-of-the-hpc) instead |
 | **Authority** | **The island constrains; the HPC executes.** The island does not take control under [B1](#b1--degrade-the-ads-when-the-odd-cannot-be-held). |
-| <mark>**Demand**</mark> | <mark>[`N19`](#64-odd-degradation-on-weather-and-visibility) publishes `odd_satisfiable = false` on `/si/out/odd_verdict`, with the measured envelope (`d_visible`, `a_brake`, derived `v_max`), the ODD dimension that failed, and the remaining `T_odd` budget. **The island names no target domain**: the demand is *leave this one*, not *enter that one*</mark> |
-| **Response** | Graded, in order: *notify* → <mark>*demand an ODD switch*</mark> → *restrict* (hard speed cap from the speed law, §6.4) → *request MRM* from the HPC. <mark>The rungs are cumulative, not alternative — the cap stays on while the switch is negotiated, and is lifted only by an accepted switch or by the envelope's own recovery</mark> |
-| <mark>**Acceptance test**</mark> | <mark>Two tests, both measurable on the island, neither needing the HPC's cooperation. **(1) Declaration** — the domain [`H4`](#7-new-nodes-to-add-on-the-hpc) now reports as active must lie inside the island's measured envelope: speed ceiling at or below `v_max`, required sensing range at or below `d_visible`, assumed friction at or below the estimate. **(2) Behaviour** — measured speed, acceleration and curvature converge on that domain's bounds within `T_odd`. A declaration that passes (1) but fails (2) is a *false declaration*, and counts as no declaration at all</mark> |
-| **Deadlines** | <mark>Declare a new active domain — or declare exhaustion — within `T_ack` = **2 s** of the demand; satisfy it within the safety timeout `T_odd` = **10 s** (open decision 17).</mark> Comply with a restriction within **3 s**; begin a requested MRM within **10 s**; complete it within **60 s** |
-| **Observable output** | `/si/out/odd_verdict` <mark>(carrying `odd_satisfiable`, the failed dimension, the accepted domain once there is one, and the remaining `T_odd` budget)</mark>, `/si/out/constraints` (mode `ALLOW` → `CONSTRAIN` → `MRM`). `MrmState` remains `NORMAL` throughout: **[B1](#b1--degrade-the-ads-when-the-odd-cannot-be-held) is not an MRM** |
-| **Success criterion** | <mark>The HPC declares a domain that passes both acceptance tests and holds it over the recovery window — *or*, where the envelope recovers on its own,</mark> measured vehicle speed converges to `v_max` within the deadline, and the ODD margin is restored <mark>without a switch having been needed</mark> |
-| <mark>**Exit — upward: the ADS operates in an accepted domain**</mark> | <mark>Both acceptance tests pass and hold for the §6.4 recovery window — ~30 s of clear evidence, with [`H4`](#7-new-nodes-to-add-on-the-hpc)'s own verdict agreeing. [`N3`](#61-supervision-state-and-fallback) returns `/si/out/constraints` to `ALLOW` and the island to supervision. **The vehicle is driving normally again, in a narrower domain than the one it started in** — that narrowing is [B1](#b1--degrade-the-ads-when-the-odd-cannot-be-held)'s *outcome*, not a residual fault, and it persists until the envelope itself recovers</mark> |
-| <mark>**Exit — downward: `T_odd` expires**</mark> | <mark>Escalate. *Which* behaviour takes over is decided by what the island still **has**, not by what the HPC did wrong — sensing blackout ([`N17`](#62-island-safety-sensing)) → **[B4](#b4--emergency-stop-when-the-island-is-blind)**; HPC unavailable ([`N2`](#61-supervision-state-and-fallback)) → **[B2](#b2--keep-the-vehicle-in-its-lane-after-loss-of-the-hpc)**; otherwise, the HPC being alive and either non-compliant or out of satisfiable domains → **[B3](#b3--pull-over-if-the-odd-continues-to-fail)**. The tests are applied in that order</mark> |
-| **Failure** | Non-compliance within any deadline is raised to [`N8`](#61-supervision-state-and-fallback) as a fault <mark>and escalates by the rule in the row above. A domain that passes acceptance test (1) but fails (2) is additionally recorded by [`N11`](#61-supervision-state-and-fallback) as a SOTIF event: an HPC reporting a domain it is not in is §6.4's confidently-wrong case, arriving through a second channel</mark> |
+| **Demand** | [`N19`](#64-odd-degradation-on-weather-and-visibility) publishes `odd_satisfiable = false` on `/si/out/odd_verdict`, with the measured envelope (`d_visible`, `a_brake`, derived `v_max`), the ODD dimension that failed, and the remaining `T_odd` budget. **The island names no target domain**: the demand is *leave this one*, not *enter that one* |
+| **Response** | Graded, in order: *notify* → *demand an ODD switch* → *restrict* (hard speed cap from the speed law, §6.4) → *request MRM* from the HPC. The rungs are cumulative, not alternative — the cap stays on while the switch is negotiated, and is lifted only by an accepted switch or by the envelope's own recovery |
+| **Acceptance test** | Two tests, both measurable on the island, neither needing the HPC's cooperation. **(1) Declaration** — the domain [`H4`](#7-new-nodes-to-add-on-the-hpc) now reports as active must lie inside the island's measured envelope: speed ceiling at or below `v_max`, required sensing range at or below `d_visible`, assumed friction at or below the estimate. **(2) Behaviour** — measured speed, acceleration and curvature converge on that domain's bounds within `T_odd`. A declaration that passes (1) but fails (2) is a *false declaration*, and counts as no declaration at all |
+| **Deadlines** | Declare a new active domain — or declare exhaustion — within `T_ack` = **2 s** of the demand; satisfy it within the safety timeout `T_odd` = **10 s** (open decision 17). Comply with a restriction within **3 s**; begin a requested MRM within **10 s**; complete it within **60 s** |
+| **Observable output** | `/si/out/odd_verdict` (carrying `odd_satisfiable`, the failed dimension, the accepted domain once there is one, and the remaining `T_odd` budget), `/si/out/constraints` (mode `ALLOW` → `CONSTRAIN` → `MRM`). `MrmState` remains `NORMAL` throughout: **[B1](#b1--degrade-the-ads-when-the-odd-cannot-be-held) is not an MRM** |
+| **Success criterion** | The HPC declares a domain that passes both acceptance tests and holds it over the recovery window — *or*, where the envelope recovers on its own, measured vehicle speed converges to `v_max` within the deadline, and the ODD margin is restored without a switch having been needed |
+| **Exit — upward: the ADS operates in an accepted domain** | Both acceptance tests pass and hold for the §6.4 recovery window — ~30 s of clear evidence, with [`H4`](#7-new-nodes-to-add-on-the-hpc)'s own verdict agreeing. [`N3`](#61-supervision-state-and-fallback) returns `/si/out/constraints` to `ALLOW` and the island to supervision. **The vehicle is driving normally again, in a narrower domain than the one it started in** — that narrowing is [B1](#b1--degrade-the-ads-when-the-odd-cannot-be-held)'s *outcome*, not a residual fault, and it persists until the envelope itself recovers |
+| **Exit — downward: `T_odd` expires** | Escalate. *Which* behaviour takes over is decided by what the island still **has**, not by what the HPC did wrong — sensing blackout ([`N17`](#62-island-safety-sensing)) → **[B4](#b4--emergency-stop-when-the-island-is-blind)**; HPC unavailable ([`N2`](#61-supervision-state-and-fallback)) → **[B2](#b2--keep-the-vehicle-in-its-lane-after-loss-of-the-hpc)**; otherwise, the HPC being alive and either non-compliant or out of satisfiable domains → **[B3](#b3--pull-over-if-the-odd-continues-to-fail)**. The tests are applied in that order |
+| **Failure** | Non-compliance within any deadline is raised to [`N8`](#61-supervision-state-and-fallback) as a fault and escalates by the rule in the row above. A domain that passes acceptance test (1) but fails (2) is additionally recorded by [`N11`](#61-supervision-state-and-fallback) as a SOTIF event: an HPC reporting a domain it is not in is §6.4's confidently-wrong case, arriving through a second channel |
 | **Hysteresis** | Degrade on ~2 s of consistent evidence; recover only after ~30 s of clear evidence **and** agreement from [`H4`](#7-new-nodes-to-add-on-the-hpc) |
 | **Optional enrichment** ([§3.5](#35-optional-enrichment-the-hpc-object-list)) | The HPC object list, while it is fresh. Feeds the **self-consistency veto** and adds a conservative term to [`N10`](#61-supervision-state-and-fallback)'s envelope. Never relaxes a bound and never satisfies a deadline |
 | **Minimum sensor rung** (§9.4) | <mark>**B** — visibility estimation needs both the radar-versus-camera divergence test and the camera contrast test. The friction dimension needs the island IMU, rung **D**; below it, friction falls back to the chassis ESC signals and is claimed with correspondingly less margin</mark> |
 
-<mark>**Honest exhaustion is not non-compliance.**</mark> <mark>The HPC may answer the demand with *none of my domains
+**Honest exhaustion is not non-compliance.** The HPC may answer the demand with *none of my domains
 is satisfiable*. That is a **compliant** answer and must not be run out as a timeout. It is the rung the
 §6.4 ladder already calls **Request MRM** — ask the HPC to pull over while it still can, with the map,
 the traffic law and the full planner available to it. An HPC-executed pull-over under [B1](#b1--degrade-the-ads-when-the-odd-cannot-be-held) is
 strictly better than an island-executed one under [B3](#b3--pull-over-if-the-odd-continues-to-fail): the island can verify a refuge, but it
 cannot choose one (§6.3). Exhaustion therefore routes to the MRM rung immediately, and only the MRM
 deadlines — 10 s to begin, 60 s to complete — then apply. **`T_odd` bounds silence and
-non-compliance, not honesty.**</mark>
+non-compliance, not honesty.**
 
-<mark>**`T_odd` is not a free parameter.**</mark> <mark>The safety timeout is bounded from above by physics the island
+**`T_odd` is not a free parameter.** The safety timeout is bounded from above by physics the island
 is already measuring. While the switch is negotiated the envelope keeps shrinking, and [B3](#b3--pull-over-if-the-odd-continues-to-fail) has a
 precondition — a refuge that can still be reached and verified. `T_odd` must be shorter than the time in
-which the ODD margin, falling at its measured rate, would invalidate that precondition:</mark>
+which the ODD margin, falling at its measured rate, would invalidate that precondition:
 
 ```text
 T_odd  <  t_margin  −  t_pullover
@@ -214,10 +218,10 @@ T_odd  <  t_margin  −  t_pullover
   t_pullover  time to execute a pull-over from the current speed to the refuge       (N18)
 ```
 
-<mark>An island that negotiates until the moment the envelope fails has spent the budget the fallback
+An island that negotiates until the moment the envelope fails has spent the budget the fallback
 needed. This is §6.3's refuge coverage guarantee, restated on the time axis instead of the distance
 axis, and it is why `T_odd` is declared per-situation by [`N19`](#64-odd-degradation-on-weather-and-visibility) rather than fixed as a
-constant.</mark>
+constant.
 
 ![B1 on the island's node graph: what B1 runs on in full colour, what it only passes through in half-tone, the rest of the island faded](layers/L4SafetyIsland-Layer6-B1-DegradeADS.png)
 
@@ -232,7 +236,7 @@ constant.</mark>
 is unavailable, so [B1](#b1--degrade-the-ads-when-the-odd-cannot-be-held) cannot be used — every rung of [B1](#b1--degrade-the-ads-when-the-odd-cannot-be-held) is executed by the HPC — while [B3](#b3--pull-over-if-the-odd-continues-to-fail) is not yet
 warranted, because the loss may still be transient and a pull-over is the more dangerous manoeuvre.
 Rather than commit immediately to a terminal manoeuvre, the island takes lateral and longitudinal
-authority, holds the vehicle in its current lane at a speed it <mark>continuously reduces</mark>, and waits, for
+authority, holds the vehicle in its current lane at a speed it continuously reduces, and waits, for
 a bounded window, to see whether the HPC comes back.
 
 <mark>Two things about that window are now fixed rather than open. **Its first act is to bring the vehicle
@@ -246,11 +250,11 @@ vehicle does not loiter under a fallback controller. When it closes with the HPC
 hands over to exactly one of two behaviours — [B3](#b3--pull-over-if-the-odd-continues-to-fail) if the island can still see the lane, [B4](#b4--emergency-stop-when-the-island-is-blind) if it
 cannot.</mark>
 
-<mark>The hold is not a plateau. Throughout the window the island is doing two things at once: waiting for
+The hold is not a plateau. Throughout the window the island is doing two things at once: waiting for
 the HPC, and **preparing to stop without it** — shedding speed onto the ramp defined below and keeping
 [`N18`](#63-pull-over-mrm-after-hpc-loss)'s refuge evaluation live, so that when the window closes the exit manoeuvre is already
 staged. A hold that merely maintains a constant speed and then discovers, at `T_hold`, that it must
-begin decelerating from that speed has spent the whole window buying nothing.</mark>
+begin decelerating from that speed has spent the whole window buying nothing.
 
 The behaviour is only enterable while the **lane is still observable** — <mark>by the island's own camera,
 which is the one sensor [D8](#1-inputs-already-fixed-by-the-wg) makes mandatory. The buffered map corridor refines what the camera sees
@@ -262,25 +266,25 @@ what distinguishes [B2](#b2--keep-the-vehicle-in-its-lane-after-loss-of-the-hpc)
 | :-- | :-- |
 | **Trigger** | [`N2`](#61-supervision-state-and-fallback) declares the HPC unavailable — heartbeat timeout, per-topic rate violation, or latency beyond the declared budget — and [`N8`](#61-supervision-state-and-fallback) raises `HPC_LIVENESS_LOST` (or `HPC_COMMAND_INVALID`) while the ADS is engaged. Stated behaviourally: **[B1](#b1--degrade-the-ads-when-the-odd-cannot-be-held) is unavailable because its executor is gone** |
 | **Precondition** | A **valid corridor** exists — <mark>[`N17`](#62-island-safety-sensing) holds the camera valid and [`N14`](#62-island-safety-sensing) reports lane boundaries with sufficient confidence. [`H3`](#7-new-nodes-to-add-on-the-hpc)'s buffered map corridor, while within its age limit, is fused with them but cannot stand in for them.</mark> Without one, [B2](#b2--keep-the-vehicle-in-its-lane-after-loss-of-the-hpc) is not entered: <mark>the island cannot see the lane, and goes directly to [B4](#b4--emergency-stop-when-the-island-is-blind)</mark> |
-| **Corridor source, in priority order** | <mark>1. [`N14`](#62-island-safety-sensing) camera lane boundaries — live, and required · 2. [`H3`](#7-new-nodes-to-add-on-the-hpc) map-derived corridor while fresh — fused with 1 to refine its geometry, and to bridge a camera dropout no longer than [`N17`](#62-island-safety-sensing)'s debounce (open decision 15). There is no third source: the heading / yaw-rate tube of earlier revisions is withdrawn, because a lane the island cannot see is one it hands to [B4](#b4--emergency-stop-when-the-island-is-blind)</mark> |
+| **Corridor source, in priority order** | 1. <mark>[`N14`](#62-island-safety-sensing) camera lane boundaries — live, and required · 2.</mark> <mark>[`H3`](#7-new-nodes-to-add-on-the-hpc) map-derived corridor while fresh — fused with 1 to refine its geometry, and to bridge a camera dropout no longer than [`N17`](#62-island-safety-sensing)'s debounce (open decision 15).</mark> <mark>There is no third source: the heading / yaw-rate tube of earlier revisions is withdrawn, because a lane the island cannot see is one it hands to [B4](#b4--emergency-stop-when-the-island-is-blind)</mark> |
 | **Authority** | **The island steers and brakes.** [`I9`](#41-migration-list)–[`I11`](#41-migration-list) are deselected; no HPC command is in the loop |
 | **Response** | Take authority → `I13 pure_pursuit` tracks the corridor centreline → <mark>**decelerate to the safe speed of the current ODD, `v_odd`**, then continue down the `v_hold` ramp defined in the next row — not to a constant hold speed</mark> → maintain lane, obstacle-aware against [`N16`](#62-island-safety-sensing) → hazard lamps on → <mark>keep [`N18`](#63-pull-over-mrm-after-hpc-loss)'s refuge evaluation running throughout — the camera searching the road edge for pull-over space while it holds the lane lines — so [B3](#b3--pull-over-if-the-odd-continues-to-fail) inherits a staged manoeuvre rather than starting one</mark> → hold for at most `T_hold` |
 | <mark>**Speed — `v_odd`**</mark> | <mark>**The safe speed of the ODD the vehicle is in**, by road class: of the order of **60 km/h on a highway** and **30 km/h on a city road** (the table of classes and values is open decision 13). The class is the one carried by the `active_odd` [`H4`](#7-new-nodes-to-add-on-the-hpc) last declared, buffered by [`N3`](#61-supervision-state-and-fallback) at [B2](#b2--keep-the-vehicle-in-its-lane-after-loss-of-the-hpc) entry. A declaration that is stale or missing selects the **most restrictive class**; rung-C GNSS may corroborate the class against a coarse road-class geofence, and may only lower it. `v_odd` is a ceiling, never a target to accelerate to: a vehicle already below it stays below it</mark> |
-| <mark>**Speed — `v_hold`**</mark> | <mark>**Not a constant, and not `v_max`.** `v_hold` is the running minimum of five bounds, re-evaluated every cycle, and it *decays across the hold window* — the full definition is below the table. `v_odd` is the term that dominates first; the others take over as the window runs. The island is driving on its own reduced sensor set, under a fallback controller, inside the island's own narrower ODD (open decision 13); every one of those is a reason `v_hold` sits below the speed the HPC was holding</mark> |
-| **Deadlines** | Authority transfer complete within the §9.2 fault-reaction budget (≤ 70 ms from first heartbeat miss); <mark>`v_odd` reached at the declared fallback deceleration (≤ 2 m/s², open decision 14)</mark>, `v_hold` <mark>tracked continuously thereafter as it decays</mark>; `T_hold` is declared and finite — <mark>**8–15 s**, set per ODD class (open decision 14)</mark> — the hold is never open-ended <mark>— and at `T_hold` the vehicle must already be at `v_entry`, so that escalation to [B3](#b3--pull-over-if-the-odd-continues-to-fail) costs no further deceleration time</mark> |
+| **Speed — `v_hold`** | **Not a constant, and not `v_max`.** `v_hold` is the running minimum of five bounds, re-evaluated every cycle, and it *decays across the hold window* — the full definition is below the table. <mark>`v_odd` is the term that dominates first; the others take over as the window runs.</mark> The island is driving on its own reduced sensor set, under a fallback controller, inside the island's own narrower ODD (open decision 13); every one of those is a reason `v_hold` sits below the speed the HPC was holding |
+| **Deadlines** | Authority transfer complete within the §9.2 fault-reaction budget (≤ 70 ms from first heartbeat miss); <mark>`v_odd` reached at the declared fallback deceleration (≤ 2 m/s², open decision 14)</mark>, `v_hold` tracked continuously thereafter as it decays; `T_hold` is declared and finite — <mark>**8–15 s**, set per ODD class (open decision 14)</mark> — the hold is never open-ended — and at `T_hold` the vehicle must already be at `v_entry`, so that escalation to [B3](#b3--pull-over-if-the-odd-continues-to-fail) costs no further deceleration time |
 | **Observable output** | `MrmState` = `MRM_OPERATING`; [`N3`](#61-supervision-state-and-fallback) mode = `LANE_KEEP_HOLD`; `/si/out/state` carries the authority holder, the corridor source in use, lateral deviation and the remaining hold budget |
-| **Bound** | Lateral deviation from corridor centre within the declared threshold; corridor validity age-checked per source; [`N7`](#61-supervision-state-and-fallback) bounds lateral acceleration, steering rate and jerk <mark>; `v_hold` is monotone non-increasing for the whole episode</mark> |
-| **Success criterion** | Lateral deviation stays inside the threshold for the whole episode, <mark>measured speed stays at or below `v_hold` throughout</mark>, **and** the episode ends in one of the two authorised exits below — never by `T_hold` simply lapsing into an undefined state |
-| **Exit — upward: the HPC resumes** | [`N2`](#61-supervision-state-and-fallback) observes the heartbeat restored **and** valid, in-envelope trajectories for a declared confirmation window. [`N3`](#61-supervision-state-and-fallback) then hands authority back through [`I3`](#41-migration-list)'s smooth-transition path and the island returns to supervision under [**B1**](#b1--degrade-the-ads-when-the-odd-cannot-be-held) — entering at `CONSTRAIN`, not `ALLOW`, and releasing only under the §6.4 hysteresis. **This is the only reversible *authority transfer* in the ladder** <mark>— the other edge back up, [B1](#b1--degrade-the-ads-when-the-odd-cannot-be-held) → `ADS_ACTIVE`, moves no authority, because the HPC drives throughout it</mark> |
+| **Bound** | Lateral deviation from corridor centre within the declared threshold; corridor validity age-checked per source; [`N7`](#61-supervision-state-and-fallback) bounds lateral acceleration, steering rate and jerk ; `v_hold` is monotone non-increasing for the whole episode |
+| **Success criterion** | Lateral deviation stays inside the threshold for the whole episode, measured speed stays at or below `v_hold` throughout, **and** the episode ends in one of the two authorised exits below — never by `T_hold` simply lapsing into an undefined state |
+| **Exit — upward: the HPC resumes** | [`N2`](#61-supervision-state-and-fallback) observes the heartbeat restored **and** valid, in-envelope trajectories for a declared confirmation window. [`N3`](#61-supervision-state-and-fallback) then hands authority back through [`I3`](#41-migration-list)'s smooth-transition path and the island returns to supervision under [**B1**](#b1--degrade-the-ads-when-the-odd-cannot-be-held) — entering at `CONSTRAIN`, not `ALLOW`, and releasing only under the §6.4 hysteresis. **This is the only reversible *authority transfer* in the ladder** — the other edge back up, [B1](#b1--degrade-the-ads-when-the-odd-cannot-be-held) → `ADS_ACTIVE`, moves no authority, because the HPC drives throughout it |
 | **Exit — downward: the HPC stays lost** | `T_hold` expires with no confirmed recovery → <mark>**exactly one of two successors**, decided by what the island can still see, tested in this order: **[B4](#b4--emergency-stop-when-the-island-is-blind)** if [`N17`](#62-island-safety-sensing) no longer holds the camera valid, or [`N14`](#62-island-safety-sensing) no longer sees the lane lines; otherwise **[B3](#b3--pull-over-if-the-odd-continues-to-fail)**, entered at `v_entry` with a refuge already under evaluation rather than at the hold speed with nothing staged.</mark> If [`N18`](#63-pull-over-mrm-after-hpc-loss) <mark>then concludes that no refuge exists</mark>, [B3](#b3--pull-over-if-the-odd-continues-to-fail) degenerates to an in-lane stop, executed under [B2](#b2--keep-the-vehicle-in-its-lane-after-loss-of-the-hpc)'s own authority and control law <mark>— an outcome of [B3](#b3--pull-over-if-the-odd-continues-to-fail)'s search, not a third exit from [B2](#b2--keep-the-vehicle-in-its-lane-after-loss-of-the-hpc)</mark> |
-| **Failure** | <mark>Camera lost, or lane lines lost beyond the bridging budget, mid-episode → **[B4](#b4--emergency-stop-when-the-island-is-blind) at once**, no waiting for `T_hold`: it is the downward exit's own first test, applied early.</mark> [`I19`](#41-migration-list) AEB fires, or [`N9`](#61-supervision-state-and-fallback) reports the actuators not tracking → <mark>emergency stop ([B4](#b4--emergency-stop-when-the-island-is-blind))</mark> |
+| **Failure** | <mark>Camera lost, or lane lines lost beyond the bridging budget, mid-episode → **[B4](#b4--emergency-stop-when-the-island-is-blind) at once**, no waiting for `T_hold`: it is the downward exit's own first test, applied early.</mark> [`I19`](#41-migration-list) AEB fires, or [`N9`](#61-supervision-state-and-fallback) reports the actuators not tracking → emergency stop ([B4](#b4--emergency-stop-when-the-island-is-blind)) |
 | **Optional enrichment** ([§3.5](#35-optional-enrichment-the-hpc-object-list)) | The last HPC object digest inside its carry-over budget, to lower `v_hold` or shorten [`N7`](#61-supervision-state-and-fallback)'s ramp. Never extends `T_hold` and never substitutes for the corridor <mark>— and the same holds for every sensor below the camera: an ultrasonic or 2D lidar return may add a hazard, never a corridor</mark> |
 | **Minimum sensor rung** (§9.4) | <mark>**A** — the forward camera plus the chassis signals. [B2](#b2--keep-the-vehicle-in-its-lane-after-loss-of-the-hpc) is the behaviour that must survive on the smallest sensor set. At rung A `v_max` is computed on the camera's range alone and will usually sit below the highway class's 60 km/h, so the highway `v_odd` is in practice reached only at rung **B**, where forward radar supplies the range</mark> |
 
 ##### The `v_hold` ramp
 
-<mark>`v_hold` is the running minimum of five bounds, re-evaluated every cycle. Four of them are static
-ceilings; the fifth is what makes the hold a ramp:</mark>
+`v_hold` is the running minimum of five bounds, re-evaluated every cycle. Four of them are static
+ceilings; the fifth is what makes the hold a ramp:
 
 ```text
 v_hold(t) = min( v_max,         §6.4 speed law, on island sensing alone — stop within what you see   (N19)
@@ -294,19 +298,19 @@ v_exit(t)  =  the profile that arrives at v_entry when t reaches T_hold
 v_entry    =  the speed at which B3 enters the pull-over, or at which the in-lane stop begins
 ```
 
-<mark>Two rules govern it, and both are normative.</mark>
+Two rules govern it, and both are normative.
 
-<mark>**`v_hold` is monotone non-increasing within an episode.** It never rises. A corridor source that
+**`v_hold` is monotone non-increasing within an episode.** It never rises. <mark>A corridor source that
 degrades mid-episode — the map corridor ageing out, the markings fading, the camera's lane confidence
-falling — lowers `v_corridor` and therefore `v_hold`, and nothing raises it again. The only release is the
+falling — lowers `v_corridor` and therefore `v_hold`, and nothing raises it again.</mark> The only release is the
 authority hand-back, and that leaves [B2](#b2--keep-the-vehicle-in-its-lane-after-loss-of-the-hpc) altogether. An island that recovers speed on its own
-evidence, while the HPC is still gone, has quietly promoted itself from *holding* to *driving*.</mark>
+evidence, while the HPC is still gone, has quietly promoted itself from *holding* to *driving*.
 
-<mark>**The ramp lands on `v_entry`, not on the hold speed.** `v_exit(t)` is what converts the hold window
+**The ramp lands on `v_entry`, not on the hold speed.** `v_exit(t)` is what converts the hold window
 from dead time into preparation. At `t = T_hold` the vehicle is already at the speed [B3](#b3--pull-over-if-the-odd-continues-to-fail) needs, so
 the downward exit is a *continuation* of a deceleration already underway rather than the start of a new
 one. This is the same bounding argument [B1](#b1--degrade-the-ads-when-the-odd-cannot-be-held)'s `T_odd` makes: the window a behaviour spends waiting
-must not consume the budget the behaviour underneath it needs.</mark>
+must not consume the budget the behaviour underneath it needs.
 
 <mark>**`v_odd` is where the window's budget goes first, and it is why the window is 8–15 s.** The
 deceleration to the ODD's safe speed is not free, and it is the largest single item in the hold:</mark>
@@ -323,11 +327,11 @@ leave the HPC a real chance to recover, and that is what sets its floor near 8 s
 is set by the other side: the time a fallback controller on a camera-held corridor should be trusted to
 keep a lane at all. Within those bounds `T_hold` is declared per road class (open decision 14).</mark>
 
-<mark>Note what this rules out. `v_hold` is **not** the HPC's last commanded speed, **not** the posted limit,
+Note what this rules out. `v_hold` is **not** the HPC's last commanded speed, **not** the posted limit,
 and **not** `v_max` alone — `v_max` answers only *can I stop within what I can see*, which is necessary
 and nowhere near sufficient for a fallback controller tracking a corridor it may be inferring from
 camera boundaries. Every term above is measured or declared on the island, so `v_hold` remains
-defensible after the HPC is gone — which is the only condition under which it is ever used.</mark>
+defensible after the HPC is gone — which is the only condition under which it is ever used.
 
 <mark>The two corridor sources degrade differently, and [B2](#b2--keep-the-vehicle-in-its-lane-after-loss-of-the-hpc)'s ceiling degrades with them: the buffered map
 corridor is exact but ages out within seconds of the HPC's loss, while the camera's lane boundaries
@@ -368,48 +372,48 @@ mission only through the authority hand-back above.
 | | |
 | :-- | :-- |
 | **Trigger** | [B1](#b1--degrade-the-ads-when-the-odd-cannot-be-held) escalation exhausted — the HPC did not comply, or the ODD was not restored within the deadline; **or** [B2](#b2--keep-the-vehicle-in-its-lane-after-loss-of-the-hpc)'s hold window `T_hold` expired with the HPC still lost <mark>and the camera still holding the lane — the island can see, so it can search; had it lost the camera, [B2](#b2--keep-the-vehicle-in-its-lane-after-loss-of-the-hpc) would have exited to [B4](#b4--emergency-stop-when-the-island-is-blind) instead</mark> |
-| **Precondition** | <mark>A refuge exists that the island can **verify free** and can still reach at the current speed — from either source in the row below.</mark> [`N18`](#63-pull-over-mrm-after-hpc-loss) reports `pull_over_available = true`, and the <mark>candidate</mark> refuge is verified free against [`N16`](#62-island-safety-sensing)'s live free space |
-| <mark>**Refuge source, in priority order**</mark> | <mark>1. [`H8`](#7-new-nodes-to-add-on-the-hpc)'s **nominated** refuge — map-validated and law-checked by the HPC, verified free by [`N16`](#62-island-safety-sensing) before use. 2. [`N18`](#63-pull-over-mrm-after-hpc-loss)'s own **island-detected** refuge — a lateral clearance found **by the camera**: [`N14`](#62-island-safety-sensing) tracks the lane lines, finds the outer edge of the running lane and the road edge or kerb beyond it, and measures the drivable space between them; [`N6`](#61-supervision-state-and-fallback) radar confirms the space is unoccupied and that nothing is closing on it. Admitted only under `legality = EMERGENCY_ONLY`. [`N15`](#62-island-safety-sensing) ultrasonics ([D8](#1-inputs-already-fixed-by-the-wg) rank 3), where fitted, guard the final metres and let the stop end tight to the kerb rather than within the shoulder; [`N13`](#62-island-safety-sensing) 2D lidar, where fitted, may confirm the geometry or disqualify the space. Neither is required. 3. Neither — no refuge, and the abort ladder decides what happens next</mark> |
+| **Precondition** | A refuge exists that the island can **verify free** and can still reach at the current speed — from either source in the row below. [`N18`](#63-pull-over-mrm-after-hpc-loss) reports `pull_over_available = true`, and the candidate refuge is verified free against [`N16`](#62-island-safety-sensing)'s live free space |
+| **Refuge source, in priority order** | 1. [`H8`](#7-new-nodes-to-add-on-the-hpc)'s **nominated** refuge — map-validated and law-checked by the HPC, verified free by [`N16`](#62-island-safety-sensing) before use. 2. <mark>[`N18`](#63-pull-over-mrm-after-hpc-loss)'s own **island-detected** refuge — a lateral clearance found **by the camera**:</mark> <mark>[`N14`](#62-island-safety-sensing) tracks the lane lines, finds the outer edge of the running lane and the road edge or kerb beyond it, and measures the drivable space between them;</mark> <mark>[`N6`](#61-supervision-state-and-fallback) radar confirms the space is unoccupied and that nothing is closing on it.</mark> <mark>Admitted only under `legality = EMERGENCY_ONLY`.</mark> <mark>[`N15`](#62-island-safety-sensing) ultrasonics ([D8](#1-inputs-already-fixed-by-the-wg) rank 3), where fitted, guard the final metres and let the stop end tight to the kerb rather than within the shoulder;</mark> <mark>[`N13`](#62-island-safety-sensing) 2D lidar, where fitted, may confirm the geometry or disqualify the space.</mark> <mark>Neither is required. 3.</mark> Neither — no refuge, and the abort ladder decides what happens next |
 | **Authority** | **The island steers, brakes and signals.** [B2](#b2--keep-the-vehicle-in-its-lane-after-loss-of-the-hpc) steers to stay where the vehicle already is; [B3](#b3--pull-over-if-the-odd-continues-to-fail) is the only behaviour in which the island initiates lateral *displacement* — deliberately leaving the running lane. |
-| **Response** | <mark>Open the refuge search across **both** sources the moment [B3](#b3--pull-over-if-the-odd-continues-to-fail) is entered, and keep it open while decelerating — [`N14`](#62-island-safety-sensing) holding the lane lines for the in-lane part of the manoeuvre and scanning the road edge for space</mark> → <mark>**Hazard lamps on the moment the manoeuvre is commanded**</mark> → indicator on → bounded lateral displacement to <mark>the first refuge that passes verification, across the outer lane line [`N14`](#62-island-safety-sensing) is tracking, with containment re-armed against the road edge it has observed</mark> → deceleration → standstill → secure (gear P, <mark>lamps stay on</mark>) |
-| <mark>**Deadlines**</mark> | <mark>The refuge search is bounded by `T_refuge` = **5 s** from [B3](#b3--pull-over-if-the-odd-continues-to-fail) entry, and additionally by a distance-travelled-searching cap, for the reason open decision 15 gives about time and distance not being the same constraint at speed (both are open decision 18). Once a refuge is accepted, the §6.4 MRM deadlines apply — begin within **10 s**, complete within **60 s**</mark> |
+| **Response** | <mark>Open the refuge search across **both** sources the moment [B3](#b3--pull-over-if-the-odd-continues-to-fail) is entered, and keep it open while decelerating — [`N14`](#62-island-safety-sensing) holding the lane lines for the in-lane part of the manoeuvre and scanning the road edge for space</mark> → **Hazard lamps on the moment the manoeuvre is commanded** → indicator on → bounded lateral displacement to <mark>the first refuge that passes verification, across the outer lane line [`N14`](#62-island-safety-sensing) is tracking, with containment re-armed against the road edge it has observed</mark> → deceleration → standstill → secure (gear P, lamps stay on) |
+| **Deadlines** | The refuge search is bounded by `T_refuge` = **5 s** from [B3](#b3--pull-over-if-the-odd-continues-to-fail) entry, and additionally by a distance-travelled-searching cap, for the reason open decision 15 gives about time and distance not being the same constraint at speed (both are open decision 18). Once a refuge is accepted, the §6.4 MRM deadlines apply — begin within **10 s**, complete within **60 s** |
 | **Observable output** | `MrmState` = `MRM_OPERATING`, behaviour = `PULL_OVER` (see open decision 10); [`N18`](#63-pull-over-mrm-after-hpc-loss) `MrmBehaviorStatus` |
-| **Success criterion** | Standstill within the <mark>accepted</mark> refuge <mark>— whichever source offered it —</mark>, near field clear, `MrmState` = `MRM_SUCCEEDED` |
-| **Abort** | Per the ladder in §6.3 — every rung degrades to an **in-lane stop under [B2](#b2--keep-the-vehicle-in-its-lane-after-loss-of-the-hpc)'s authority and control law**, <mark>then to emergency stop ([B4](#b4--emergency-stop-when-the-island-is-blind))</mark>. <mark>Two of those rungs are now told apart by *what the search concluded*. A search that **positively determines** that no usable refuge exists — neither source offers one — abandons the pull-over to the **in-lane stop**, which still has a corridor to work with. A search that reaches `T_refuge` **without a determination either way** goes to [B4](#b4--emergency-stop-when-the-island-is-blind). An inconclusive search is a statement about the island's capability, not about the road, and capability loss goes to the floor (§3.2)</mark> |
-| <mark>**Exit**</mark> | <mark>**`SAFE_STOP`, as [B4](#b4--emergency-stop-when-the-island-is-blind)'s is.** [B3](#b3--pull-over-if-the-odd-continues-to-fail) is terminal for the drive cycle: one successor, the secured standstill, and no edge back up. The two behaviours differ in *where* they leave the vehicle and in what they needed in order to get there, not in whether the drive continues afterwards (§3.2)</mark> |
+| **Success criterion** | Standstill within the accepted refuge — whichever source offered it —, near field clear, `MrmState` = `MRM_SUCCEEDED` |
+| **Abort** | Per the ladder in §6.3 — every rung degrades to an **in-lane stop under [B2](#b2--keep-the-vehicle-in-its-lane-after-loss-of-the-hpc)'s authority and control law**, then to emergency stop ([B4](#b4--emergency-stop-when-the-island-is-blind)). Two of those rungs are now told apart by *what the search concluded*. A search that **positively determines** that no usable refuge exists — neither source offers one — abandons the pull-over to the **in-lane stop**, which still has a corridor to work with. A search that reaches `T_refuge` **without a determination either way** goes to [B4](#b4--emergency-stop-when-the-island-is-blind). An inconclusive search is a statement about the island's capability, not about the road, and capability loss goes to the floor (§3.2) |
+| **Exit** | **`SAFE_STOP`, as [B4](#b4--emergency-stop-when-the-island-is-blind)'s is.** [B3](#b3--pull-over-if-the-odd-continues-to-fail) is terminal for the drive cycle: one successor, the secured standstill, and no edge back up. The two behaviours differ in *where* they leave the vehicle and in what they needed in order to get there, not in whether the drive continues afterwards (§3.2) |
 | **Optional enrichment** ([§3.5](#35-optional-enrichment-the-hpc-object-list)) | The last HPC object digest, to **disqualify** a refuge. It may never qualify one |
 | **Minimum sensor rung** (§9.4) | <mark>**A** — the camera alone — at or below ~30 km/h, the city-road `v_odd`, where a long indicator dwell and a very low lateral rate can stand in for rear-corner radar. **B** above ~30 km/h: forward and rear-corner radar, because the manoeuvre then crosses traffic space a forward camera cannot see</mark> |
 
-<mark>**The island may now find a refuge. It still may not choose one.**</mark> <mark>§6.3's split — the HPC nominates,
+**The island may now find a refuge. It still may not choose one.** §6.3's split — the HPC nominates,
 the island verifies and executes — holds wherever the HPC is there to nominate. Under [B3](#b3--pull-over-if-the-odd-continues-to-fail) it
 frequently is not: [B3](#b3--pull-over-if-the-odd-continues-to-fail) is reached from [B2](#b2--keep-the-vehicle-in-its-lane-after-loss-of-the-hpc) precisely when the HPC has been lost, and
 [`H8`](#7-new-nodes-to-add-on-the-hpc)'s buffered refuge set ages out like every other buffered input (§8.1). An island with
 no second source makes the refuge contract a single point of failure for the one manoeuvre it exists to
-enable.</mark>
+enable.
 
-<mark>So the island gets a second source, and it is deliberately weaker than the first:</mark>
+So the island gets a second source, and it is deliberately weaker than the first:
 
-| | <mark>[`H8`](#7-new-nodes-to-add-on-the-hpc) nominated refuge</mark> | <mark>[`N18`](#63-pull-over-mrm-after-hpc-loss) island-detected refuge</mark> |
+| | [`H8`](#7-new-nodes-to-add-on-the-hpc) nominated refuge | [`N18`](#63-pull-over-mrm-after-hpc-loss) island-detected refuge |
 | :-- | :-- | :-- |
-| <mark>**Physically free**</mark> | <mark>verified by [`N16`](#62-island-safety-sensing), before use</mark> | <mark>verified by [`N16`](#62-island-safety-sensing), before use</mark> |
-| <mark>**Legal**</mark> | <mark>checked against the map and traffic law by the HPC</mark> | <mark>**unknown** — the island holds neither</mark> |
-| <mark>**`legality` value**</mark> | <mark>`LEGAL_STOP` or `EMERGENCY_ONLY`, as nominated</mark> | <mark>`EMERGENCY_ONLY`, always</mark> |
-| <mark>**Admissible**</mark> | <mark>whenever offered and within `validity_distance_m`</mark> | <mark>only when no nominated refuge is available</mark> |
-| <mark>**Sensors**</mark> | <mark>[`N16`](#62-island-safety-sensing) free space</mark> | <mark>[`N14`](#62-island-safety-sensing) camera — lane lines, road edge, drivable space between them — + [`N6`](#61-supervision-state-and-fallback) radar occupancy, fused in [`N16`](#62-island-safety-sensing); [`N15`](#62-island-safety-sensing) ultrasonic where fitted, for the final metres and a tight-to-kerb end; [`N13`](#62-island-safety-sensing) 2D lidar where fitted, only to confirm or disqualify</mark> |
+| **Physically free** | verified by [`N16`](#62-island-safety-sensing), before use | verified by [`N16`](#62-island-safety-sensing), before use |
+| **Legal** | checked against the map and traffic law by the HPC | **unknown** — the island holds neither |
+| **`legality` value** | `LEGAL_STOP` or `EMERGENCY_ONLY`, as nominated | `EMERGENCY_ONLY`, always |
+| **Admissible** | whenever offered and within `validity_distance_m` | only when no nominated refuge is available |
+| **Sensors** | [`N16`](#62-island-safety-sensing) free space | <mark>[`N14`](#62-island-safety-sensing) camera — lane lines, road edge, drivable space between them — + [`N6`](#61-supervision-state-and-fallback) radar occupancy, fused in [`N16`](#62-island-safety-sensing); [`N15`](#62-island-safety-sensing) ultrasonic where fitted, for the final metres and a tight-to-kerb end; [`N13`](#62-island-safety-sensing) 2D lidar where fitted, only to confirm or disqualify</mark> |
 
-<mark>The asymmetry is the whole argument. An island-detected refuge is a **physically clear lateral
+The asymmetry is the whole argument. An island-detected refuge is a **physically clear lateral
 space** and nothing more — a verge, a hard shoulder, a wide kerb, and equally a cycle lane, a bus stop
 or a driveway, which the island cannot tell apart. Admitting one means preferring an unlawful stopping
 place to a stop in a live running lane. That trade is defensible, but only under the `EMERGENCY_ONLY`
 semantics the refuge contract already carries, and only in that direction: it is the judgement a human
 driver makes with a failed engine, and it is why the island-detected refuge sits *second* in the
-priority order and never displaces a nominated one.</mark>
+priority order and never displaces a nominated one.
 
-<mark>What the island still cannot do is **choose**, in the sense §6.3 rules out. It does not weigh two
+What the island still cannot do is **choose**, in the sense §6.3 rules out. It does not weigh two
 candidate refuges against each other for legality, does not reason about bridges or bus stops, and does
 not defer a stop in order to reach a better place further on. It takes the first lateral clearance that
 passes verification, inside `T_refuge`. **Search, not selection** — the distinction that keeps map and
-planner semantics off the island ([R4](#21-partitioning-rules), [R5](#21-partitioning-rules)).</mark>
+planner semantics off the island ([R4](#21-partitioning-rules), [R5](#21-partitioning-rules)).
 
 <mark>**The camera is what [B3](#b3--pull-over-if-the-odd-continues-to-fail) searches with.** With the 2D lidar now optional ([D8](#1-inputs-already-fixed-by-the-wg)), the
 island-detected refuge has to be found by the one sensor every island carries. [`N14`](#62-island-safety-sensing) does three
@@ -429,21 +433,21 @@ is the half that sets rung **B** above ~30 km/h. A camera finding that is not co
 radar is fitted is not admitted, and a radar or lidar finding can only ever *disqualify* a space the
 camera found, never qualify one the camera did not.</mark>
 
-<mark>**Both terminal behaviours raise the hazard lamps on entry, not on arrival.**</mark> <mark>[B3](#b3--pull-over-if-the-odd-continues-to-fail) raises them when
+**Both terminal behaviours raise the hazard lamps on entry, not on arrival.** [B3](#b3--pull-over-if-the-odd-continues-to-fail) raises them when
 the pull-over is commanded and [B4](#b4--emergency-stop-when-the-island-is-blind) when the blackout is declared, and in both cases they stay on
 through the manoeuvre, the standstill and the secure. The lamps exist for the traffic behind, and the
 traffic behind needs the warning *while* the vehicle is decelerating — and, under [B3](#b3--pull-over-if-the-odd-continues-to-fail), moving
 laterally — not once it has already stopped. [B2](#b2--keep-the-vehicle-in-its-lane-after-loss-of-the-hpc) already behaves this way, so with this the whole of
-the island's authority becomes legible from outside within one lamp period of its being taken.</mark>
+the island's authority becomes legible from outside within one lamp period of its being taken.
 
-<mark>One integration conflict has to be decided rather than discovered.</mark> <mark>On most production wiring the
+One integration conflict has to be decided rather than discovered. On most production wiring the
 hazard circuit overrides both direction indicators, so a [B3](#b3--pull-over-if-the-odd-continues-to-fail) that raises hazards at entry can no longer
 signal *which way* it is leaving the running lane — and the indicator is what the §6.3 ladder leans on
 below ~30 km/h, where a long indicator dwell is what buys back the rear-corner radar. The two
 candidate resolutions — indicator alone for a fixed dwell with hazards from the start of lateral
 motion, or hazards throughout and no directional signal at all — are a vehicle-integration question
 rather than a software one, and the WG should settle which. Nothing else in this design depends on
-the answer.</mark>
+the answer.
 
 ![B3 on the island's node graph: what B3 runs on in full colour, what it only passes through in half-tone, the rest of the island faded](layers/L4SafetyIsland-Layer6-B3-PullOver.png)
 
@@ -454,11 +458,11 @@ the answer.</mark>
 
 #### B4 — Emergency stop when the island is blind
 
-<mark>[B4](#b4--emergency-stop-when-the-island-is-blind) is the **floor of the ladder**, and it exists because [B2](#b2--keep-the-vehicle-in-its-lane-after-loss-of-the-hpc) and [B3](#b3--pull-over-if-the-odd-continues-to-fail) are both
+[B4](#b4--emergency-stop-when-the-island-is-blind) is the **floor of the ladder**, and it exists because [B2](#b2--keep-the-vehicle-in-its-lane-after-loss-of-the-hpc) and [B3](#b3--pull-over-if-the-odd-continues-to-fail) are both
 conditional behaviours. [B2](#b2--keep-the-vehicle-in-its-lane-after-loss-of-the-hpc) requires an observable lane; [B3](#b3--pull-over-if-the-odd-continues-to-fail) requires a refuge that can be
-verified free. Both rest on the same sensor — the forward camera, the one [D8](#1-inputs-already-fixed-by-the-wg) makes mandatory and
+verified free. <mark>Both rest on the same sensor — the forward camera, the one [D8](#1-inputs-already-fixed-by-the-wg) makes mandatory and
 therefore the only one either behaviour is allowed to assume — so both are lost together when it is
-lost. When the camera has gone — blocked, failed, saturated, or disagreeing</mark> beyond what
+lost.</mark> <mark>When the camera has gone — blocked, failed, saturated, or disagreeing</mark> beyond what
 [`N16`](#62-island-safety-sensing)'s arbitration can resolve — neither behaviour has a defensible precondition
 left, and the island must not attempt either one on stale evidence. It stops instead, where it is.
 
@@ -469,43 +473,43 @@ not require cannot be what keeps the island out of [B4](#b4--emergency-stop-when
 cannot (§3.5) — but while it lives it still feeds [`I19`](#41-migration-list) and may steepen [B4](#b4--emergency-stop-when-the-island-is-blind)'s
 ramp.</mark>
 
-<mark>Emergency stop is not new machinery. It is already step 3b of the §5.3 graded reaction and the
+Emergency stop is not new machinery. It is already step 3b of the §5.3 graded reaction and the
 bottom rung of the §6.3 abort ladder. What [B4](#b4--emergency-stop-when-the-island-is-blind) adds is **declaration**: the rung acquires a
 trigger, a deadline, a sensor rung and a traceability row like the other three, instead of being
 reached only as the residue of something else failing. A fallback that is only ever arrived at by
-accident cannot be argued for in a safety case.</mark>
+accident cannot be argued for in a safety case.
 
 | | |
 | :-- | :-- |
-| <mark>**Trigger**</mark> | <mark>[`N17`](#62-island-safety-sensing) declares **sensing blackout** — the **forward camera** is invalid, blocked or stale, or [`N14`](#62-island-safety-sensing) has lost the lane lines beyond the bridging budget, so [`N16`](#62-island-safety-sensing) can publish neither a valid corridor nor valid lateral free space. Radar, ultrasonic, IMU/GNSS or 2D lidar that are still alive do not lift the declaration ([D8](#1-inputs-already-fixed-by-the-wg)). Stated in behavioural terms, which is how [`N3`](#61-supervision-state-and-fallback) evaluates it: **[B2](#b2--keep-the-vehicle-in-its-lane-after-loss-of-the-hpc) has no corridor *and* [B3](#b3--pull-over-if-the-odd-continues-to-fail) has no verifiable refuge.** It is also [B2](#b2--keep-the-vehicle-in-its-lane-after-loss-of-the-hpc)'s downward exit whenever `T_hold` expires with the camera lost. Also entered directly on Also entered directly on [`N9`](#61-supervision-state-and-fallback) (actuators not tracking) or [`I19`](#41-migration-list) (AEB fires), per the §6.3 ladder</mark> |
-| <mark>**Precondition**</mark> | <mark>**None, and deliberately none.** A fallback whose entry can be blocked is not a fallback. [B4](#b4--emergency-stop-when-the-island-is-blind) needs only the proprioceptive channels [`N4`](#61-supervision-state-and-fallback) already requires — </mark>the chassis signals: wheel speed, steering report, ESC yaw rate and acceleration, with the island IMU where it is fitted<mark> — and the actuation path to [`I16`](#41-migration-list)</mark> |
-| <mark>**Authority**</mark> | <mark>**The island brakes, and declines to steer.** Lateral authority is *surrendered, not exercised*: with no corridor there is nothing to steer against, so the steering command is held at its current angle under [`N7`](#61-supervision-state-and-fallback)'s rate limit and allowed to relax toward straight. [B4](#b4--emergency-stop-when-the-island-is-blind) is the only behaviour in which the island deliberately does not steer</mark> |
-| <mark>**Response**</mark> | <mark>**Hazard lamps on the moment the blackout is declared** → [`I6`](#41-migration-list) `mrm_emergency_stop_operator` publishes the control command directly → deceleration at the emergency rate `a_emg` → standstill → [`I5`](#41-migration-list) secures (gear P). No trajectory is planned, and none could be: planning needs a world model</mark> |
-| <mark>**Deadlines**</mark> | <mark>Authority transfer within the §9.2 fault-reaction budget (≤ 70 ms from the declaring fault). `a_emg` and the steering-relaxation rate are open decision 15</mark> |
-| <mark>**Observable output**</mark> | <mark>`MrmState` = `MRM_OPERATING`, behaviour = `EMERGENCY_STOP` — the one MRM behaviour the existing `MrmState` message can already name without extension (contrast open decision 10). [`N3`](#61-supervision-state-and-fallback) mode = `EMERGENCY_STOP`; `/si/out/state` carries the blackout fault code and which sources were lost</mark> |
-| <mark>**Success criterion**</mark> | <mark>Standstill, secured, hazard lamps on. **Nothing is claimed about *where*.** [B4](#b4--emergency-stop-when-the-island-is-blind) stops the vehicle in the running lane, and that is the honest statement of what a blind island can promise</mark> |
-| <mark>**Failure**</mark> | <mark>[`N9`](#61-supervision-state-and-fallback) reports the actuators still not tracking → the gate's built-in stop (§5.3 step 3c) and the FSI hardware fault line (§8.5), both of which sit outside the ROS-node path by construction</mark> |
-| <mark>**Exit**</mark> | <mark>**`SAFE_STOP`, and nothing else.** [B4](#b4--emergency-stop-when-the-island-is-blind) has exactly one successor — the secured standstill — and no edge back up the ladder. It stays terminal for the drive cycle even if sensing returns mid-stop: a source that has just been declared invalid has not earned authority back inside a stop that is already under way</mark> |
-| <mark>**Optional enrichment** ([§3.5](#35-optional-enrichment-the-hpc-object-list))</mark> | <mark>The last HPC object digest, to shape the ramp only. It may not delay entry, offer an exit, or count as a valid source — [`N20`](#62-island-safety-sensing) never contributes to the blackout determination. **A surviving radar is treated the same way:** [`N6`](#61-supervision-state-and-fallback) may keep [`I19`](#41-migration-list) armed and steepen the ramp toward the upper bound of `a_emg` for a target in path, and may do nothing else</mark> |
-| <mark>**Minimum sensor rung** (§9.4)</mark> | <mark>**0 — none.** [B4](#b4--emergency-stop-when-the-island-is-blind) is the behaviour that must survive the loss of the entire island sensor set, the camera included, on the chassis signals alone. It is what makes rung A a *design* choice rather than a *safety* floor</mark> |
+| **Trigger** | <mark>[`N17`](#62-island-safety-sensing) declares **sensing blackout** — the **forward camera** is invalid, blocked or stale, or [`N14`](#62-island-safety-sensing) has lost the lane lines beyond the bridging budget, so [`N16`](#62-island-safety-sensing) can publish neither a valid corridor nor valid lateral free space.</mark> <mark>Radar, ultrasonic, IMU/GNSS or 2D lidar that are still alive do not lift the declaration ([D8](#1-inputs-already-fixed-by-the-wg)).</mark> Stated in behavioural terms, which is how [`N3`](#61-supervision-state-and-fallback) evaluates it: <mark>**[B2](#b2--keep-the-vehicle-in-its-lane-after-loss-of-the-hpc) has no corridor *and* [B3](#b3--pull-over-if-the-odd-continues-to-fail) has no verifiable refuge.** It is also [B2](#b2--keep-the-vehicle-in-its-lane-after-loss-of-the-hpc)'s downward exit whenever `T_hold` expires with the camera lost.</mark> <mark>Also entered directly on Also entered directly on [`N9`](#61-supervision-state-and-fallback) (actuators not tracking) or [`I19`](#41-migration-list) (AEB fires), per the §6.3 ladder</mark> |
+| **Precondition** | **None, and deliberately none.** A fallback whose entry can be blocked is not a fallback. [B4](#b4--emergency-stop-when-the-island-is-blind) needs only the proprioceptive channels [`N4`](#61-supervision-state-and-fallback) already requires — the chassis signals: wheel speed, steering report, ESC yaw rate and acceleration, with the island IMU where it is fitted — and the actuation path to [`I16`](#41-migration-list) |
+| **Authority** | **The island brakes, and declines to steer.** Lateral authority is *surrendered, not exercised*: with no corridor there is nothing to steer against, so the steering command is held at its current angle under [`N7`](#61-supervision-state-and-fallback)'s rate limit and allowed to relax toward straight. [B4](#b4--emergency-stop-when-the-island-is-blind) is the only behaviour in which the island deliberately does not steer |
+| **Response** | **Hazard lamps on the moment the blackout is declared** → [`I6`](#41-migration-list) `mrm_emergency_stop_operator` publishes the control command directly → deceleration at the emergency rate `a_emg` → standstill → [`I5`](#41-migration-list) secures (gear P). No trajectory is planned, and none could be: planning needs a world model |
+| **Deadlines** | Authority transfer within the §9.2 fault-reaction budget (≤ 70 ms from the declaring fault). `a_emg` and the steering-relaxation rate are open decision 15 |
+| **Observable output** | `MrmState` = `MRM_OPERATING`, behaviour = `EMERGENCY_STOP` — the one MRM behaviour the existing `MrmState` message can already name without extension (contrast open decision 10). [`N3`](#61-supervision-state-and-fallback) mode = `EMERGENCY_STOP`; `/si/out/state` carries the blackout fault code and which sources were lost |
+| **Success criterion** | Standstill, secured, hazard lamps on. **Nothing is claimed about *where*.** [B4](#b4--emergency-stop-when-the-island-is-blind) stops the vehicle in the running lane, and that is the honest statement of what a blind island can promise |
+| **Failure** | [`N9`](#61-supervision-state-and-fallback) reports the actuators still not tracking → the gate's built-in stop (§5.3 step 3c) and the FSI hardware fault line (§8.5), both of which sit outside the ROS-node path by construction |
+| **Exit** | **`SAFE_STOP`, and nothing else.** [B4](#b4--emergency-stop-when-the-island-is-blind) has exactly one successor — the secured standstill — and no edge back up the ladder. It stays terminal for the drive cycle even if sensing returns mid-stop: a source that has just been declared invalid has not earned authority back inside a stop that is already under way |
+| **Optional enrichment** ([§3.5](#35-optional-enrichment-the-hpc-object-list)) | The last HPC object digest, to shape the ramp only. <mark>It may not delay entry, offer an exit, or count as a valid source — [`N20`](#62-island-safety-sensing) never contributes to the blackout determination.</mark> <mark>**A surviving radar is treated the same way:** [`N6`](#61-supervision-state-and-fallback) may keep [`I19`](#41-migration-list) armed and steepen the ramp toward the upper bound of `a_emg` for a target in path, and may do nothing else</mark> |
+| **Minimum sensor rung** (§9.4) | <mark>**0 — none.** [B4](#b4--emergency-stop-when-the-island-is-blind) is the behaviour that must survive the loss of the entire island sensor set, the camera included, on the chassis signals alone.</mark> It is what makes rung A a *design* choice rather than a *safety* floor |
 
-<mark>**Why stopping in the lane is accepted.** Stopping in a running lane is dangerous, and no design
+**Why stopping in the lane is accepted.** Stopping in a running lane is dangerous, and no design
 should reach for it casually. The argument for [B4](#b4--emergency-stop-when-the-island-is-blind) is comparative rather than absolute: the only
 other things a blind island can do are continue on stale evidence, or attempt a lateral manoeuvre it
 cannot verify. Both are worse, and both fail *unboundedly* — the error grows with every metre
 travelled. A stop is bounded: the vehicle's own kinetic energy is the whole of it, and the manoeuvre
 is legible to everything around the vehicle through brake lights and hazard lamps. The residual risk
-is real, and it belongs in the Part-4 HARA as a **named accepted risk**, not as a gap.</mark>
+is real, and it belongs in the Part-4 HARA as a **named accepted risk**, not as a gap.
 
-<mark>**[B4](#b4--emergency-stop-when-the-island-is-blind) is not "AEB fired".** [`I19`](#41-migration-list) autonomous emergency braking is a *reflex* against a specific
+**[B4](#b4--emergency-stop-when-the-island-is-blind) is not "AEB fired".** [`I19`](#41-migration-list) autonomous emergency braking is a *reflex* against a specific
 detected obstacle, and it presupposes a working forward sensor. [B4](#b4--emergency-stop-when-the-island-is-blind) is a *state*: the island no
 longer knows what is ahead of it at all. The two share the actuator path ([`I6`](#41-migration-list)) and nothing else.
 An AEB event escalates *into* [B4](#b4--emergency-stop-when-the-island-is-blind) — the §6.3 ladder already says so — but the reverse is
-impossible, because a blind island cannot detect the obstacle that would trigger AEB.</mark>
+impossible, because a blind island cannot detect the obstacle that would trigger AEB.
 
 <mark>**[B4](#b4--emergency-stop-when-the-island-is-blind) is not the in-lane stop either.** The in-lane stop that [B3](#b3--pull-over-if-the-odd-continues-to-fail) degrades to when its search
 finds no refuge is *obstacle-aware*: it decelerates along the corridor the camera still sees, shortening
-the ramp against [`N16`](#62-island-safety-sensing)'s free-space distance. It is a reduced behaviour, not a blind one. [B4](#b4--emergency-stop-when-the-island-is-blind) is what
+the ramp against [`N16`](#62-island-safety-sensing)'s free-space distance.</mark> It is a reduced behaviour, not a blind one. <mark>[B4](#b4--emergency-stop-when-the-island-is-blind) is what
 remains when the camera no longer sees a corridor to stop along, and [`N8`](#61-supervision-state-and-fallback) distinguishes the two by
 fault code so the event recorder and the HARA can tell them apart.</mark>
 
@@ -516,7 +520,7 @@ fault code so the event recorder and the HARA can tell them apart.</mark>
 
 #### B5 — Tele-operation from the remote command centre
 
-<mark>*Detailed design in [§6.6](#66-detailed-design-of-b5-and-b6): entered from standstill, or taken over from a moving vehicle in [B1](#b1--degrade-the-ads-when-the-odd-cannot-be-held)–[B3](#b3--pull-over-if-the-odd-continues-to-fail) when the ADS requests it. Open decision 19 holds what remains.*</mark>
+<mark>*Detailed design in [§6.6](#66-detailed-design-of-b5-and-b6): entered from standstill, or taken over from a moving vehicle in [B1](#b1--degrade-the-ads-when-the-odd-cannot-be-held)–[B3](#b3--pull-over-if-the-odd-continues-to-fail) when the ADS requests it. Its communication — the module, the session and its security, the video transport — is deferred to the next design ([§8.6](#86-the-rcc-link-and-the-local-control-port)). Open decision 19 holds what remains.*</mark>
 
 <mark>[B5](#b5--tele-operation-from-the-remote-command-centre) hands the driving task to a person at the **remote command and control centre (RCC)**. It is how a
 vehicle that has ended its drive in [B3](#b3--pull-over-if-the-odd-continues-to-fail) or [B4](#b4--emergency-stop-when-the-island-is-blind) — or that the ADS can no longer continue — is moved
@@ -531,16 +535,16 @@ extra steps, so [B5](#b5--tele-operation-from-the-remote-command-centre) is admi
 
 | | |
 | :-- | :-- |
-| <mark>**Trigger**</mark> | <mark>The RCC requests control and [`N3`](#61-supervision-state-and-fallback) grants it. Two origins: `SAFE_STOP` — recovery after [B3](#b3--pull-over-if-the-odd-continues-to-fail) or [B4](#b4--emergency-stop-when-the-island-is-blind) — and a **moving vehicle in [B1](#b1--degrade-the-ads-when-the-odd-cannot-be-held)–[B3](#b3--pull-over-if-the-odd-continues-to-fail)**, after the ADS has raised a remote take-over request because the HPC behaves abnormally and the RCC has accepted it. [B5](#b5--tele-operation-from-the-remote-command-centre) is never entered from `ADS_ACTIVE` or from [B4](#b4--emergency-stop-when-the-island-is-blind). The handshake and the take-over conditions are in [§6.6](#66-detailed-design-of-b5-and-b6)</mark> |
-| <mark>**Precondition**</mark> | <mark>An authenticated RCC session on [`N21`](#65-remote-command-and-control-link-and-local-control-port), with measured round-trip latency and stream age inside their bounds · the camera valid ([`N17`](#62-island-safety-sensing)) · no [B6](#b6--manual-joystick-control-without-streamed-sensing) active · **from motion, also**: speed at or below `v_teleop`, 5 s of situational awareness, a matched command, and no lateral manoeuvre in progress</mark> |
-| <mark>**Authority**</mark> | <mark>The remote driver commands; the island executes and bounds. Commands arrive on [`N21`](#65-remote-command-and-control-link-and-local-control-port) and enter [`I1`](#41-migration-list) as the **remote** command source, validated by [`I8`](#41-migration-list) and [`N10`](#61-supervision-state-and-fallback) like any other (§10.4)</mark> |
+| **Trigger** | <mark>The RCC requests control and [`N3`](#61-supervision-state-and-fallback) grants it. Two origins: `SAFE_STOP` — recovery after [B3](#b3--pull-over-if-the-odd-continues-to-fail) or [B4](#b4--emergency-stop-when-the-island-is-blind) — and a **moving vehicle in [B1](#b1--degrade-the-ads-when-the-odd-cannot-be-held)–[B3](#b3--pull-over-if-the-odd-continues-to-fail)**, after the ADS has raised a remote take-over request because the HPC behaves abnormally and the RCC has accepted it. [B5](#b5--tele-operation-from-the-remote-command-centre) is never entered from `ADS_ACTIVE` or from [B4](#b4--emergency-stop-when-the-island-is-blind). The handshake and the take-over conditions are in [§6.6](#66-detailed-design-of-b5-and-b6)</mark> |
+| **Precondition** | <mark>An authenticated RCC session on [`N21`](#65-remote-command-and-control-link-and-local-control-port), with measured round-trip latency and stream age inside their bounds · the camera valid ([`N17`](#62-island-safety-sensing)) · no [B6](#b6--manual-joystick-control-without-streamed-sensing) active · **from motion, also**: speed at or below `v_teleop`, 5 s of situational awareness, a matched command, and no lateral manoeuvre in progress</mark> |
+| **Authority** | <mark>The remote driver commands; the island executes and bounds. Commands arrive on [`N21`](#65-remote-command-and-control-link-and-local-control-port) and enter [`I1`](#41-migration-list) as the **remote** command source, validated by [`I8`](#41-migration-list) and [`N10`](#61-supervision-state-and-fallback) like any other (§10.4)</mark> |
 | <mark>**Streamed to the RCC**</mark> | <mark>[`N22`](#65-remote-command-and-control-link-and-local-control-port): forward camera, compressed to a bounded bit rate — required · radar tracks — rung B up · ultrasonic near-field clearance — rung C up · [`N4`](#61-supervision-state-and-fallback) ego state · the island's state and fault summary</mark> |
 | <mark>**Speed**</mark> | <mark>`v_teleop`, bounded by the measured end-to-end latency — camera to RCC screen, and command back to the actuator — and by the range the stream shows: the vehicle must be able to stop inside what the remote driver could see, *after* the latency has elapsed: `v_teleop` = min(20 km/h, `v_vis`), recomputed at 10 Hz from the measured command age ([§6.6](#66-detailed-design-of-b5-and-b6)). The values are for ratification in open decision 19(b)</mark> |
 | <mark>**Guards that stay armed**</mark> | <mark>[`I19`](#41-migration-list) AEB · [`I20`](#41-migration-list) near-field, rung C up · [`N10`](#61-supervision-state-and-fallback) envelope · [`N9`](#61-supervision-state-and-fallback) actuator supervision. The remote driver cannot override them</mark> |
 | <mark>**Link loss**</mark> | <mark>No valid command or heartbeat for `T_link` = 300 ms, or a command more than 1.0 s old by the frame-stamp echo → the island takes authority back and stops: the **in-lane stop** under [B2](#b2--keep-the-vehicle-in-its-lane-after-loss-of-the-hpc)'s control law if the camera still sees the lane, **[B4](#b4--emergency-stop-when-the-island-is-blind)** if it does not — the same capability-first test as every other downward edge. Never "continue on the last command"</mark> |
-| <mark>**Exit**</mark> | <mark>The RCC releases control at standstill → `SAFE_STOP`. From there the RCC may also re-engage the ADS, once the HPC is re-qualified and the ODD is satisfiable ([§6.6](#66-detailed-design-of-b5-and-b6), open decision 19(c))</mark> |
-| <mark>**Observable output**</mark> | <mark>`OperationModeState` = `REMOTE` — a mode Autoware already defines</mark> |
-| <mark>**Minimum sensor rung** (§9.4)</mark> | <mark>**A** — the camera, which is what the remote driver watches. Radar and ultrasonic are streamed where fitted</mark> |
+| **Exit** | <mark>The RCC releases control at standstill → `SAFE_STOP`. From there the RCC may also re-engage the ADS, once the HPC is re-qualified and the ODD is satisfiable ([§6.6](#66-detailed-design-of-b5-and-b6), open decision 19(c))</mark> |
+| **Observable output** | <mark>`OperationModeState` = `REMOTE` — a mode Autoware already defines</mark> |
+| **Minimum sensor rung** (§9.4) | <mark>**A** — the camera, which is what the remote driver watches. Radar and ultrasonic are streamed where fitted</mark> |
 | <mark>**Still open**</mark> | <mark>Link technology and redundancy; who owns the keys and certificates; the take-over numbers — `T_sa` and the matching tolerances; stage 2 — a path-based remote-assistance mode; the RCC's human-factors requirements (open decision 19)</mark> |
 
 ![B5 on the island's node graph: what B5 runs on in full colour, what it only passes through in half-tone, the rest of the island faded](layers/L4SafetyIsland-Layer6-B5-TeleOperation.png)
@@ -552,24 +556,24 @@ extra steps, so [B5](#b5--tele-operation-from-the-remote-command-centre) is admi
 <mark>*Detailed design in [§6.6](#66-detailed-design-of-b5-and-b6): stage 1, entered from standstill. Open decision 20 holds what remains.*</mark>
 
 <mark>[B6](#b6--manual-joystick-control-without-streamed-sensing) is the manual fallback for when there is no stream to watch. An operator **within sight of the
-vehicle** drives it with a joystick connected to the island's **local control port** — by cable, or over a
-**short-range radio** link. The operator's own eyes are the sensing, so [B6](#b6--manual-joystick-control-without-streamed-sensing) needs no exteroceptive
+vehicle** drives it with a joystick connected to the island's **local control port** — **by cable** in this design;
+a short-range radio link is deferred to the next design. The operator's own eyes are the sensing, so [B6](#b6--manual-joystick-control-without-streamed-sensing) needs no exteroceptive
 sensor and no RCC link: with [B4](#b4--emergency-stop-when-the-island-is-blind), it is one of only two behaviours that run at rung 0. It is how a
 vehicle is moved off a carriageway, onto a recovery truck or into a depot when automation and
 tele-operation are both unavailable.</mark>
 
 | | |
 | :-- | :-- |
-| <mark>**Trigger**</mark> | <mark>The local operator takes control on [`N23`](#65-remote-command-and-control-link-and-local-control-port) — device paired, dead-man held. Proposed origins: `SAFE_STOP`, and [B5](#b5--tele-operation-from-the-remote-command-centre) — **local presence pre-empts the remote driver**. A moving vehicle is never taken over: a moving [B5](#b5--tele-operation-from-the-remote-command-centre) is stopped first ([§6.6](#66-detailed-design-of-b5-and-b6), open decision 20(a))</mark> |
-| <mark>**Precondition**</mark> | <mark>A paired local device on [`N23`](#65-remote-command-and-control-link-and-local-control-port) with its link heartbeat inside `T_local` · the vehicle at standstill on entry</mark> |
-| <mark>**Authority**</mark> | <mark>The operator commands through [`I1`](#41-migration-list)'s **local** command source, which outranks the remote one. [`I8`](#41-migration-list) and [`N10`](#61-supervision-state-and-fallback) still validate</mark> |
-| <mark>**Sensing**</mark> | <mark>None required and none streamed. Island sensors that are still valid keep guarding — [`I19`](#41-migration-list), and [`I20`](#41-migration-list) on [`N15`](#62-island-safety-sensing)'s near-field clearance</mark> |
-| <mark>**Speed**</mark> | <mark>Creep only: `v_local`, proposed at walking pace (~5 km/h), so that the vehicle stays inside the operator's sight and the radio's range: 5 km/h forward, 3 km/h in reverse, 0.5 m/s² ([§6.6](#66-detailed-design-of-b5-and-b6), open decision 20(b))</mark> |
+| **Trigger** | <mark>The local operator takes control on [`N23`](#65-remote-command-and-control-link-and-local-control-port) — pendant plugged in, key switch turned, dead-man held. Proposed origins: `SAFE_STOP`, and [B5](#b5--tele-operation-from-the-remote-command-centre) — **local presence pre-empts the remote driver**. A moving vehicle is never taken over: a moving [B5](#b5--tele-operation-from-the-remote-command-centre) is stopped first ([§6.6](#66-detailed-design-of-b5-and-b6), open decision 20(a))</mark> |
+| **Precondition** | <mark>A pendant connected to [`N23`](#65-remote-command-and-control-link-and-local-control-port) with its link heartbeat inside `T_local` · the vehicle at standstill on entry</mark> |
+| **Authority** | <mark>The operator commands through [`I1`](#41-migration-list)'s **local** command source, which outranks the remote one. [`I8`](#41-migration-list) and [`N10`](#61-supervision-state-and-fallback) still validate</mark> |
+| **Sensing** | <mark>None required and none streamed. Island sensors that are still valid keep guarding — [`I19`](#41-migration-list), and [`I20`](#41-migration-list) on [`N15`](#62-island-safety-sensing)'s near-field clearance</mark> |
+| <mark>**Speed**</mark> | <mark>Creep only: `v_local`, proposed at walking pace (~5 km/h), so that the vehicle stays inside the operator's sight and the cable's reach: 5 km/h forward, 3 km/h in reverse, 0.5 m/s² ([§6.6](#66-detailed-design-of-b5-and-b6), open decision 20(b))</mark> |
 | <mark>**Release or link loss**</mark> | <mark>Dead-man released, the joystick's stop pressed, or the local link silent beyond `T_local` = 200 ms → immediate stop at the emergency rate on [B4](#b4--emergency-stop-when-the-island-is-blind)'s actuator path ([`I6`](#41-migration-list), then [`I5`](#41-migration-list)). From 5 km/h the stop is about 0.85 m, all latencies included</mark> |
-| <mark>**Exit**</mark> | <mark>The operator releases control at standstill → `SAFE_STOP`</mark> |
-| <mark>**Observable output**</mark> | <mark>`OperationModeState` = `LOCAL` — a mode Autoware already defines</mark> |
-| <mark>**Minimum sensor rung** (§9.4)</mark> | <mark>**0** — no island sensor is required</mark> |
-| <mark>**Still open**</mark> | <mark>The radio band and range; where the wired port sits on the vehicle; certifying the device to IEC 62745 at PL d; the hardwired emergency-stop line (open decision 20)</mark> |
+| **Exit** | <mark>The operator releases control at standstill → `SAFE_STOP`</mark> |
+| **Observable output** | <mark>`OperationModeState` = `LOCAL` — a mode Autoware already defines</mark> |
+| **Minimum sensor rung** (§9.4) | <mark>**0** — no island sensor is required</mark> |
+| <mark>**Still open**</mark> | <mark>Where the wired port sits on the vehicle, and the cable's length; the grade of the enabling switch and the emergency stop; the hardwired emergency-stop line (open decision 20). A short-range radio link is deferred to the next design</mark> |
 
 ![B6 on the island's node graph: what B6 runs on in full colour, what it only passes through in half-tone, the rest of the island faded](layers/L4SafetyIsland-Layer6-B6-Joystick.png)
 
@@ -583,11 +587,11 @@ The four <mark>automated behaviours, [B1](#b1--degrade-the-ads-when-the-odd-cann
 **whether the situation is still recoverable**.
 
 - **[B1](#b1--degrade-the-ads-when-the-odd-cannot-be-held) is the first response** to a degrading ODD, and it is cooperative: the HPC stays in control and
-  the island only constrains it. [B1](#b1--degrade-the-ads-when-the-odd-cannot-be-held) therefore *requires a working HPC*. <mark>Its object is an
+  the island only constrains it. [B1](#b1--degrade-the-ads-when-the-odd-cannot-be-held) therefore *requires a working HPC*. Its object is an
   **operating domain**, not a speed: the island declares the current domain unsatisfiable and the HPC
   moves to one it can meet. [B1](#b1--degrade-the-ads-when-the-odd-cannot-be-held) is also the only behaviour with an **upward** exit — the drive
   continues, in a narrower domain — and the only one whose downward exit can land on any of the other
-  three.</mark>
+  three.
 - **[B2](#b2--keep-the-vehicle-in-its-lane-after-loss-of-the-hpc) is what replaces [B1](#b1--degrade-the-ads-when-the-odd-cannot-be-held) when that requirement fails.** The intent is the same — buy time in a safe
   state rather than commit to a terminal manoeuvre — but the authority is inverted: the island now
   steers. [B2](#b2--keep-the-vehicle-in-its-lane-after-loss-of-the-hpc) is admissible only while the lane remains observable <mark>by the camera. It first brings
@@ -596,65 +600,65 @@ The four <mark>automated behaviours, [B1](#b1--degrade-the-ads-when-the-odd-cann
   anything else.</mark>
 - **[B3](#b3--pull-over-if-the-odd-continues-to-fail) is the terminal response to a worsening *situation***, taken when the envelope cannot be
   restored: either [B1](#b1--degrade-the-ads-when-the-odd-cannot-be-held) exhausted its deadlines with the HPC alive but non-compliant, or [B2](#b2--keep-the-vehicle-in-its-lane-after-loss-of-the-hpc)'s hold
-  window expired with the HPC still gone. <mark>It brings the vehicle to a standstill and does not give
-  it back.</mark>
+  window expired with the HPC still gone. It brings the vehicle to a standstill and does not give
+  it back.
 - **[B4](#b4--emergency-stop-when-the-island-is-blind) is the floor**, taken when the island can no longer *see*. [B2](#b2--keep-the-vehicle-in-its-lane-after-loss-of-the-hpc) needs a lane and [B3](#b3--pull-over-if-the-odd-continues-to-fail)
   needs a verifiable refuge; both are served by the same <mark>mandatory sensor, the camera</mark>, so both are
-  lost together when it fails. [B4](#b4--emergency-stop-when-the-island-is-blind) is what is left, <mark>and it too brings the vehicle to a standstill and does not give it
-  back</mark>; it claims nothing about where the vehicle comes to rest.
+  lost together when it fails. [B4](#b4--emergency-stop-when-the-island-is-blind) is what is left, and it too brings the vehicle to a standstill and does not give it
+  back; it claims nothing about where the vehicle comes to rest.
 
-<mark>**Two behaviours end the drive, not one.**</mark> <mark>[B3](#b3--pull-over-if-the-odd-continues-to-fail) and [B4](#b4--emergency-stop-when-the-island-is-blind) are *both* terminal. Neither has an edge
+**Two behaviours end the drive, not one.** [B3](#b3--pull-over-if-the-odd-continues-to-fail) and [B4](#b4--emergency-stop-when-the-island-is-blind) are *both* terminal. Neither has an edge
 back up, and in the state diagram below each has exactly one successor, `SAFE_STOP`. What separates
 them is not *whether* the vehicle stops but **where it stops, and on what evidence it chose the
-place**:</mark>
+place**:
 
-- <mark>[B3](#b3--pull-over-if-the-odd-continues-to-fail) is a **placed** stop. The island can still see, so it nominates a refuge, verifies it free
+- [B3](#b3--pull-over-if-the-odd-continues-to-fail) is a **placed** stop. The island can still see, so it nominates a refuge, verifies it free
   against [`N16`](#62-island-safety-sensing)'s live free space, leaves the running lane, and stops there. `MRM_SUCCEEDED` under [B3](#b3--pull-over-if-the-odd-continues-to-fail)
-  therefore asserts a *location*, and the claim is defensible because a sensor confirmed it.</mark>
-- <mark>[B4](#b4--emergency-stop-when-the-island-is-blind) is an **unplaced** stop. The island cannot see, so the only thing it is entitled to promise is
+  therefore asserts a *location*, and the claim is defensible because a sensor confirmed it.
+- [B4](#b4--emergency-stop-when-the-island-is-blind) is an **unplaced** stop. The island cannot see, so the only thing it is entitled to promise is
   a standstill — in whichever lane the vehicle already occupies. §3.1's success criterion says exactly
-  that, and says nothing more.</mark>
+  that, and says nothing more.
 
-<mark>Reading [B3](#b3--pull-over-if-the-odd-continues-to-fail) as "the" terminal behaviour, and [B4](#b4--emergency-stop-when-the-island-is-blind) as an abort path that merely fell out of it, is the
+Reading [B3](#b3--pull-over-if-the-odd-continues-to-fail) as "the" terminal behaviour, and [B4](#b4--emergency-stop-when-the-island-is-blind) as an abort path that merely fell out of it, is the
 misreading this subsection exists to prevent. The island has **two** ways to end a drive, and they
 differ in precondition (a verified refuge against none), in minimum sensor rung (§9.4: **B** against
 **0**), and in residual risk — a stop in a refuge and a stop in a running lane are not the same event,
-and the Part-4 HARA must carry them as two.</mark>
+and the Part-4 HARA must carry them as two.
 
-<mark>**What takes over when [B1](#b1--degrade-the-ads-when-the-odd-cannot-be-held) runs out of time.**</mark> <mark>`T_odd` expiring is the most common way the
+**What takes over when [B1](#b1--degrade-the-ads-when-the-odd-cannot-be-held) runs out of time.** `T_odd` expiring is the most common way the
 island leaves [B1](#b1--degrade-the-ads-when-the-odd-cannot-be-held) downward, and the successor is **not** fixed. Which behaviour takes over is
 decided by what the island still *has* — never by what the HPC did wrong, because the island cannot
-always tell a non-compliant HPC from a dead one, and does not need to:</mark>
+always tell a non-compliant HPC from a dead one, and does not need to:
 
-| <mark>Condition at `T_odd` expiry</mark> | <mark>Takes over</mark> | <mark>Why</mark> |
+| Condition at `T_odd` expiry | Takes over | Why |
 | :-- | :-- | :-- |
-| <mark>Sensing blackout — [`N17`](#62-island-safety-sensing) reports the camera invalid, or the lane lines lost</mark> | <mark>**[B4](#b4--emergency-stop-when-the-island-is-blind)**</mark> | <mark>Capability, not situation. Neither [B2](#b2--keep-the-vehicle-in-its-lane-after-loss-of-the-hpc) nor [B3](#b3--pull-over-if-the-odd-continues-to-fail) has a precondition left</mark> |
-| <mark>HPC unavailable — [`N2`](#61-supervision-state-and-fallback) reports liveness lost</mark> | <mark>**[B2](#b2--keep-the-vehicle-in-its-lane-after-loss-of-the-hpc)**</mark> | <mark>The executor of every [B1](#b1--degrade-the-ads-when-the-odd-cannot-be-held) rung is gone, and the corridor is still observable</mark> |
-| <mark>HPC alive, and either non-compliant or out of satisfiable domains</mark> | <mark>**[B3](#b3--pull-over-if-the-odd-continues-to-fail)**</mark> | <mark>The situation has not been recovered and will not be. The drive ends in a refuge</mark> |
+| <mark>Sensing blackout — [`N17`](#62-island-safety-sensing) reports the camera invalid, or the lane lines lost</mark> | <mark>**[B4](#b4--emergency-stop-when-the-island-is-blind)**</mark> | Capability, not situation. Neither [B2](#b2--keep-the-vehicle-in-its-lane-after-loss-of-the-hpc) nor [B3](#b3--pull-over-if-the-odd-continues-to-fail) has a precondition left |
+| HPC unavailable — [`N2`](#61-supervision-state-and-fallback) reports liveness lost | **[B2](#b2--keep-the-vehicle-in-its-lane-after-loss-of-the-hpc)** | The executor of every [B1](#b1--degrade-the-ads-when-the-odd-cannot-be-held) rung is gone, and the corridor is still observable |
+| HPC alive, and either non-compliant or out of satisfiable domains | **[B3](#b3--pull-over-if-the-odd-continues-to-fail)** | The situation has not been recovered and will not be. The drive ends in a refuge |
 
-<mark>The tests are applied **in that order**, and the order is not arbitrary: it runs from capability loss
+The tests are applied **in that order**, and the order is not arbitrary: it runs from capability loss
 to executor loss to situation loss, which is the order in which each removes the preconditions of the
 options below it. Applying them in any other order can select a behaviour whose precondition has
 already failed — choosing [B3](#b3--pull-over-if-the-odd-continues-to-fail) on a blackout, for instance, commits the island to a refuge it cannot
-verify.</mark>
+verify.
 
 **The ladder is one-way, with two exceptions.** [B1](#b1--degrade-the-ads-when-the-odd-cannot-be-held) → [B2](#b2--keep-the-vehicle-in-its-lane-after-loss-of-the-hpc) → [B3](#b3--pull-over-if-the-odd-continues-to-fail) are entered on worsening evidence and
 are not undone by wishful thinking. <mark>[B2](#b2--keep-the-vehicle-in-its-lane-after-loss-of-the-hpc)'s downward exit is a fork, not a step: at `T_hold` it goes
 to [B3](#b3--pull-over-if-the-odd-continues-to-fail) or to [B4](#b4--emergency-stop-when-the-island-is-blind), applying the same capability-first test as the `T_odd` table above, and it has no
 third downward edge — the in-lane stop is reached only through [B3](#b3--pull-over-if-the-odd-continues-to-fail)'s search, never straight from
-[B2](#b2--keep-the-vehicle-in-its-lane-after-loss-of-the-hpc).</mark> <mark>Two edges climb back up, and they are different in kind.</mark> The reversible *authority* edge is **[B2](#b2--keep-the-vehicle-in-its-lane-after-loss-of-the-hpc) → [B1](#b1--degrade-the-ads-when-the-odd-cannot-be-held)**: if the HPC comes back and
+[B2](#b2--keep-the-vehicle-in-its-lane-after-loss-of-the-hpc).</mark> Two edges climb back up, and they are different in kind. The reversible *authority* edge is **[B2](#b2--keep-the-vehicle-in-its-lane-after-loss-of-the-hpc) → [B1](#b1--degrade-the-ads-when-the-odd-cannot-be-held)**: if the HPC comes back and
 proves itself over a confirmation window, the island hands authority back and returns to supervising
-rather than driving. <mark>The other is **[B1](#b1--degrade-the-ads-when-the-odd-cannot-be-held) → `ADS_ACTIVE`**: the domain the HPC declared through [`H4`](#7-new-nodes-to-add-on-the-hpc) has passed both acceptance tests and held for the §6.4 recovery window, so the HPC is driving normally again in the narrower domain and the island releases its cap. No authority moves on that edge — the HPC was driving throughout.</mark> Nothing else climbs back up — in particular, [B3](#b3--pull-over-if-the-odd-continues-to-fail) never returns to [B2](#b2--keep-the-vehicle-in-its-lane-after-loss-of-the-hpc) or [B1](#b1--degrade-the-ads-when-the-odd-cannot-be-held), because
+rather than driving. The other is **[B1](#b1--degrade-the-ads-when-the-odd-cannot-be-held) → `ADS_ACTIVE`**: the domain the HPC declared through [`H4`](#7-new-nodes-to-add-on-the-hpc) has passed both acceptance tests and held for the §6.4 recovery window, so the HPC is driving normally again in the narrower domain and the island releases its cap. No authority moves on that edge — the HPC was driving throughout. Nothing else climbs back up — in particular, [B3](#b3--pull-over-if-the-odd-continues-to-fail) never returns to [B2](#b2--keep-the-vehicle-in-its-lane-after-loss-of-the-hpc) or [B1](#b1--degrade-the-ads-when-the-odd-cannot-be-held), because
 a pull-over commits the vehicle to leaving the running lane.
 
-<mark>**[B4](#b4--emergency-stop-when-the-island-is-blind) is not a fourth rung of that ladder; it is underneath all of them.** [B1](#b1--degrade-the-ads-when-the-odd-cannot-be-held)–[B3](#b3--pull-over-if-the-odd-continues-to-fail) escalate on a
+**[B4](#b4--emergency-stop-when-the-island-is-blind) is not a fourth rung of that ladder; it is underneath all of them.** [B1](#b1--degrade-the-ads-when-the-odd-cannot-be-held)–[B3](#b3--pull-over-if-the-odd-continues-to-fail) escalate on a
 worsening *situation* — the envelope is not held, the HPC is gone, the deadline has run out. [B4](#b4--emergency-stop-when-the-island-is-blind) is
 entered on a loss of *capability*, and capability can be lost at any rung. The two axes are
 independent, and the design is easier to argue once they are drawn that way: every state in the
 island has an edge into [B4](#b4--emergency-stop-when-the-island-is-blind), including the in-lane stop, and [B4](#b4--emergency-stop-when-the-island-is-blind)'s **only** edge out is to
 `SAFE_STOP` — the secured standstill, which is a terminal *state*, not another behaviour. Nothing
 climbs back up out of it. That is why it carries no precondition. A floor with an entry condition is
-a trapdoor.</mark>
+a trapdoor.
 
 <mark>**[B5](#b5--tele-operation-from-the-remote-command-centre) and [B6](#b6--manual-joystick-control-without-streamed-sensing) sit outside the ladder: they are how a person takes the vehicle back.** Every
 automated behaviour ends at `SAFE_STOP`, and none of them leaves it. [B5](#b5--tele-operation-from-the-remote-command-centre) and [B6](#b6--manual-joystick-control-without-streamed-sensing) are the only edges out
@@ -709,7 +713,7 @@ stateDiagram-v2
     InLane: In-lane stop (B2 authority, obstacle-aware, on the camera's corridor)
     B4: B4 — blind emergency stop, no lateral authority — also entered on actuator fault (N9) or AEB (I19)
     B5: B5 — remote driving from the RCC on streamed camera · radar · ultrasonic, v_teleop ≤ 20 km/h, stop on T_link
-    B6: B6 — joystick, wired or short-range radio, no stream, 5 km/h, stop on release or T_local
+    B6: B6 — joystick pendant on a cable, no stream, 5 km/h, stop on release or T_local
     SafeStop: SAFE_STOP — secured, gear P
 ```
 
@@ -735,12 +739,12 @@ belong on the island.
 
 | Behaviour | Detect | Decide | Act | Assure |
 | :-- | :-- | :-- | :-- | :-- |
-| **B1** | [`N19`](#64-odd-degradation-on-weather-and-visibility) ODD monitor · [`N17`](#62-island-safety-sensing) sensor health · [`N6`](#61-supervision-state-and-fallback)/[`N14`](#62-island-safety-sensing) ingest <mark>([`N13`](#62-island-safety-sensing) where fitted)</mark> · [`N16`](#62-island-safety-sensing) world model <mark>· [`H4`](#7-new-nodes-to-add-on-the-hpc) declared active domain</mark> | [`N10`](#61-supervision-state-and-fallback) envelope · [`N3`](#61-supervision-state-and-fallback) state machine <mark>(demand, `T_ack`/`T_odd`, takeover selection)</mark> · [`N8`](#61-supervision-state-and-fallback) fault manager | [`N1`](#61-supervision-state-and-fallback)/[`H1`](#7-new-nodes-to-add-on-the-hpc) constraint egress → <mark>HPC switches domain and re-plans</mark> | Compliance supervision in [`N2`](#61-supervision-state-and-fallback) <mark>and the two-part acceptance test in [`N19`](#64-odd-degradation-on-weather-and-visibility)</mark>; [`N11`](#61-supervision-state-and-fallback) records the SOTIF event |
+| **B1** | [`N19`](#64-odd-degradation-on-weather-and-visibility) ODD monitor · [`N17`](#62-island-safety-sensing) sensor health · [`N6`](#61-supervision-state-and-fallback)/[`N14`](#62-island-safety-sensing) ingest <mark>([`N13`](#62-island-safety-sensing) where fitted)</mark> · [`N16`](#62-island-safety-sensing) world model · [`H4`](#7-new-nodes-to-add-on-the-hpc) declared active domain | [`N10`](#61-supervision-state-and-fallback) envelope · [`N3`](#61-supervision-state-and-fallback) state machine (demand, `T_ack`/`T_odd`, takeover selection) · [`N8`](#61-supervision-state-and-fallback) fault manager | [`N1`](#61-supervision-state-and-fallback)/[`H1`](#7-new-nodes-to-add-on-the-hpc) constraint egress → HPC switches domain and re-plans | Compliance supervision in [`N2`](#61-supervision-state-and-fallback) and the two-part acceptance test in [`N19`](#64-odd-degradation-on-weather-and-visibility); [`N11`](#61-supervision-state-and-fallback) records the SOTIF event |
 | **B2** | [`N2`](#61-supervision-state-and-fallback) HPC supervisor (entry and recovery) · <mark>[`N14`](#62-island-safety-sensing) camera lane lines (required) · [`N17`](#62-island-safety-sensing) camera validity · [`N6`](#61-supervision-state-and-fallback) radar</mark> · [`N16`](#62-island-safety-sensing) world model · [`H3`](#7-new-nodes-to-add-on-the-hpc) corridor <mark>· [`N19`](#64-odd-degradation-on-weather-and-visibility) for the `v_max` term of `v_hold` · [`H4`](#7-new-nodes-to-add-on-the-hpc)'s last `active_odd` for the `v_odd` term</mark> | [`N3`](#61-supervision-state-and-fallback) state machine (hold budget, hand-back) · [`N5`](#61-supervision-state-and-fallback) corridor monitor · [`I8`](#41-migration-list) validator · [`N10`](#61-supervision-state-and-fallback) envelope <mark>· [`N7`](#61-supervision-state-and-fallback) owns the `v_odd` descent and the `v_hold` ramp · [`N3`](#61-supervision-state-and-fallback) forks the exit to B3 or B4</mark> | [`I13`](#41-migration-list) pure_pursuit + [`N7`](#61-supervision-state-and-fallback) planner → [`I1`](#41-migration-list) gate → [`I16`](#41-migration-list); [`I3`](#41-migration-list) switcher for hand-back | [`N9`](#61-supervision-state-and-fallback) actuator supervisor; [`I19`](#41-migration-list)/[`I20`](#41-migration-list) as independent last line |
-| **B3** | [`N16`](#62-island-safety-sensing) free space · [`N6`](#61-supervision-state-and-fallback) rear-corner radar · [`H8`](#7-new-nodes-to-add-on-the-hpc) refuge <mark>· [`N14`](#62-island-safety-sensing) camera — lane lines, road edge and pull-over space for the island-detected refuge · [`N15`](#62-island-safety-sensing) near-field, where fitted · [`N13`](#62-island-safety-sensing) only where fitted</mark> | [`N18`](#63-pull-over-mrm-after-hpc-loss) pull-over manager <mark>(both refuge sources, `T_refuge`)</mark> · [`I7`](#41-migration-list) mrm_handler · [`N3`](#61-supervision-state-and-fallback) | [`N7`](#61-supervision-state-and-fallback) trajectory → [`I13`](#41-migration-list) → [`I1`](#41-migration-list) → [`I16`](#41-migration-list); [`I5`](#41-migration-list) secures at standstill | [`N9`](#61-supervision-state-and-fallback); abort ladder to <mark>the in-lane stop under</mark> [B2](#b2--keep-the-vehicle-in-its-lane-after-loss-of-the-hpc)<mark>'s control law</mark>, then [`I6`](#41-migration-list) |
-| <mark>**B4**</mark> | <mark>[`N17`](#62-island-safety-sensing) blackout declaration — camera invalid · [`N16`](#62-island-safety-sensing) no corridor, no lateral free space · [`N9`](#61-supervision-state-and-fallback) actuator supervisor · [`I19`](#41-migration-list) AEB</mark> | <mark>[`N3`](#61-supervision-state-and-fallback) state machine (`EMERGENCY_STOP`, no exit) · [`N8`](#61-supervision-state-and-fallback) fault manager · [`I7`](#41-migration-list) mrm_handler</mark> | <mark>[`I6`](#41-migration-list) emergency stop → [`I1`](#41-migration-list) gate → [`I16`](#41-migration-list); [`I5`](#41-migration-list) secures</mark> | <mark>[`N4`](#61-supervision-state-and-fallback) proprioceptive ego state — the only assurance left; below the node path, the gate's built-in stop and the §8.5 FSI fault line</mark> |
+| **B3** | [`N16`](#62-island-safety-sensing) free space · [`N6`](#61-supervision-state-and-fallback) rear-corner radar · [`H8`](#7-new-nodes-to-add-on-the-hpc) refuge <mark>· [`N14`](#62-island-safety-sensing) camera — lane lines, road edge and pull-over space for the island-detected refuge · [`N15`](#62-island-safety-sensing) near-field, where fitted · [`N13`](#62-island-safety-sensing) only where fitted</mark> | [`N18`](#63-pull-over-mrm-after-hpc-loss) pull-over manager (both refuge sources, `T_refuge`) · [`I7`](#41-migration-list) mrm_handler · [`N3`](#61-supervision-state-and-fallback) | [`N7`](#61-supervision-state-and-fallback) trajectory → [`I13`](#41-migration-list) → [`I1`](#41-migration-list) → [`I16`](#41-migration-list); [`I5`](#41-migration-list) secures at standstill | [`N9`](#61-supervision-state-and-fallback); abort ladder to <mark>the in-lane stop under</mark> [B2](#b2--keep-the-vehicle-in-its-lane-after-loss-of-the-hpc)<mark>'s control law</mark>, then [`I6`](#41-migration-list) |
+| **B4** | <mark>[`N17`](#62-island-safety-sensing) blackout declaration — camera invalid · [`N16`](#62-island-safety-sensing) no corridor, no lateral free space · [`N9`](#61-supervision-state-and-fallback) actuator supervisor · [`I19`](#41-migration-list) AEB</mark> | [`N3`](#61-supervision-state-and-fallback) state machine (`EMERGENCY_STOP`, no exit) · [`N8`](#61-supervision-state-and-fallback) fault manager · [`I7`](#41-migration-list) mrm_handler | [`I6`](#41-migration-list) emergency stop → [`I1`](#41-migration-list) gate → [`I16`](#41-migration-list); [`I5`](#41-migration-list) secures | [`N4`](#61-supervision-state-and-fallback) proprioceptive ego state — the only assurance left; below the node path, the gate's built-in stop and the §8.5 FSI fault line |
 | <mark>**B5**</mark> | <mark>[`N21`](#65-remote-command-and-control-link-and-local-control-port) RCC link — session, latency, stream age · [`N17`](#62-island-safety-sensing) camera validity · [`N16`](#62-island-safety-sensing) for the island's own guards · the ADS's take-over request — [`N3`](#61-supervision-state-and-fallback) on entering [B1](#b1--degrade-the-ads-when-the-odd-cannot-be-held)–[B3](#b3--pull-over-if-the-odd-continues-to-fail), or the HPC through `HpcCapability` ([`N1`](#61-supervision-state-and-fallback), [`N2`](#61-supervision-state-and-fallback))</mark> | <mark>[`N3`](#61-supervision-state-and-fallback) grants and revokes · [`I2`](#41-migration-list)/[`I3`](#41-migration-list) mode `REMOTE`</mark> | <mark>remote command → [`N21`](#65-remote-command-and-control-link-and-local-control-port) → [`I1`](#41-migration-list) remote source → [`I16`](#41-migration-list); [`N22`](#65-remote-command-and-control-link-and-local-control-port) streams camera, radar and ultrasonic to the RCC</mark> | <mark>[`I19`](#41-migration-list) · [`I20`](#41-migration-list) · [`N10`](#61-supervision-state-and-fallback) · [`N9`](#61-supervision-state-and-fallback); link-loss stop through [`N7`](#61-supervision-state-and-fallback) or [`I6`](#41-migration-list) — stage 1, [§6.6](#66-detailed-design-of-b5-and-b6)</mark> |
-| <mark>**B6**</mark> | <mark>[`N23`](#65-remote-command-and-control-link-and-local-control-port) local control port — pairing, dead-man, link heartbeat</mark> | <mark>[`N3`](#61-supervision-state-and-fallback) · [`I2`](#41-migration-list)/[`I3`](#41-migration-list) mode `LOCAL`, pre-empting `REMOTE`</mark> | <mark>joystick → [`N23`](#65-remote-command-and-control-link-and-local-control-port) → [`I1`](#41-migration-list) local source → [`I16`](#41-migration-list)</mark> | <mark>[`I6`](#41-migration-list)/[`I5`](#41-migration-list) stop on release or link loss · [`I19`](#41-migration-list), [`I20`](#41-migration-list) where sensing is valid — stage 1, [§6.6](#66-detailed-design-of-b5-and-b6)</mark> |
+| <mark>**B6**</mark> | <mark>[`N23`](#65-remote-command-and-control-link-and-local-control-port) local control port — cable connected, dead-man, link heartbeat</mark> | <mark>[`N3`](#61-supervision-state-and-fallback) · [`I2`](#41-migration-list)/[`I3`](#41-migration-list) mode `LOCAL`, pre-empting `REMOTE`</mark> | <mark>joystick → [`N23`](#65-remote-command-and-control-link-and-local-control-port) → [`I1`](#41-migration-list) local source → [`I16`](#41-migration-list)</mark> | <mark>[`I6`](#41-migration-list)/[`I5`](#41-migration-list) stop on release or link loss · [`I19`](#41-migration-list), [`I20`](#41-migration-list) where sensing is valid — stage 1, [§6.6](#66-detailed-design-of-b5-and-b6)</mark> |
 
 Every **Detect** cell above may additionally carry the optional [§3.5](#35-optional-enrichment-the-hpc-object-list) object digest from [`N20`](#62-island-safety-sensing).
 It is left out of the table deliberately: a table that traces behaviours to the nodes they *require*
@@ -1654,25 +1658,25 @@ in `SaftyIsland_ReferenceDesign.md`:
 | Graded reaction | Implemented by | Requires HPC alive? |
 | :-- | :-- | :-- |
 | 1. Notify & request self-recovery | Island → HPC constraint/veto message; HPC re-plans | **Yes** |
-| <mark>1b. **Demand an ODD switch**</mark> | <mark>Island declares the current domain unsatisfiable; the HPC selects one it can meet and declares it through [`H4`](#7-new-nodes-to-add-on-the-hpc); the island verifies the declaration and then the behaviour (§6.4)</mark> | <mark>**Yes**</mark> |
-| 2. Restrict speed / enlarge margins | `autoware_mrm_comfortable_stop_operator` (HPC) + island envelope limits <mark>— held underneath step 1b for its duration</mark> | **Yes** |
+| 1b. **Demand an ODD switch** | Island declares the current domain unsatisfiable; the HPC selects one it can meet and declares it through [`H4`](#7-new-nodes-to-add-on-the-hpc); the island verifies the declaration and then the behaviour (§6.4) | **Yes** |
+| 2. Restrict speed / enlarge margins | `autoware_mrm_comfortable_stop_operator` (HPC) + island envelope limits — held underneath step 1b for its duration | **Yes** |
 | 3a₀. Take authority — **lane-keep hold** ([B2](#b2--keep-the-vehicle-in-its-lane-after-loss-of-the-hpc)) | Island: fallback tier + `I13 pure_pursuit` on <mark>the camera's lane lines, decelerating first to the ODD's safe speed `v_odd` and then along the `v_hold` ramp to `v_entry`</mark> for at most `T_hold` <mark>(8–15 s)</mark> while awaiting HPC recovery <mark>; exits to 3a via [B3](#b3--pull-over-if-the-odd-continues-to-fail), or to 3b ([B4](#b4--emergency-stop-when-the-island-is-blind)) if the camera is lost</mark> | No |
 | 3a. Take authority — <mark>**pull-over** ([B3](#b3--pull-over-if-the-odd-continues-to-fail)), degrading to the</mark> **obstacle-aware** in-lane stop | Island: <mark>[`N18`](#63-pull-over-mrm-after-hpc-loss) on the camera's road-edge and pull-over-space evidence, or</mark> fallback tier + `si_mrm_profile`, decelerating along the <mark>camera-perceived</mark> corridor to a free-space target | No |
 | 3b′. Emergency braking on imminent collision | Island: `autoware_autonomous_emergency_braking` ([I19](#41-migration-list)) on island sensors | No |
-| <mark>3b. Take authority — **emergency stop** ([B4](#b4--emergency-stop-when-the-island-is-blind))</mark> | <mark>Island: `autoware_mrm_emergency_stop_operator` ([I6](#41-migration-list)), steering surrendered, no world model required</mark> | <mark>No</mark> |
+| 3b. Take authority — **emergency stop** ([B4](#b4--emergency-stop-when-the-island-is-blind)) | Island: `autoware_mrm_emergency_stop_operator` ([I6](#41-migration-list)), steering surrendered, no world model required | No |
 | 3c. Last resort | Island: gate built-in stop (`autoware_control_command_gate`) | No |
 | 4. Audit | Island `si_event_recorder` + HPC log store | No |
 
-Steps 1 <mark>to 2</mark> are cooperative degradation; 3a₀–3c are island-autonomous. **The island must never depend
+Steps 1 to 2 are cooperative degradation; 3a₀–3c are island-autonomous. **The island must never depend
 on step 2 succeeding before it can reach step 3.** Step 3a₀ is the only rung that can be *left upward*:
 if the HPC recovers and is confirmed healthy during the hold, authority returns to it and the ladder
 resets to step 1. Every rung below 3a₀ is terminal for the drive cycle.
 
-<mark>**Step 3b is [B4](#b4--emergency-stop-when-the-island-is-blind), and it is not only reached by falling through 3a.** Every rung from 1 to 3a has a
+**Step 3b is [B4](#b4--emergency-stop-when-the-island-is-blind), and it is not only reached by falling through 3a.** Every rung from 1 to 3a has a
 direct edge into it, because the condition that declares it — the island can no longer see — is
-independent of which rung the vehicle happens to be on (§3.2). </mark>Since [D8](#1-inputs-already-fixed-by-the-wg), *can no longer see* means *has lost the camera*.<mark> Reading the table as a strict descent
+independent of which rung the vehicle happens to be on (§3.2). Since [D8](#1-inputs-already-fixed-by-the-wg), *can no longer see* means *has lost the camera*. Reading the table as a strict descent
 is the one misreading that matters: it would let an implementation guard 3b behind 3a, and a guarded
-floor is not a floor.</mark>
+floor is not a floor.
 
 That ladder is for *HPC failure*. §6.4 defines a second, slower ladder for *ODD exit*, where the HPC is
 healthy and the correct first move is to constrain it rather than replace it.
@@ -1690,13 +1694,13 @@ island.
 | :-- | :-- | :-- | :-- | :-- |
 | **N1** | `si_safety_gateway` | In-house E2E ingress/egress (§8.4). Verifies Data ID, sequence counter, CRC, length and age on every message from the HPC before it reaches any island node; publishes island state outward. Rejects become **safety events**, not transport errors. | [T0](#22-criticality-tiers-on-the-island) | per-message |
 | **N2** | `si_hpc_supervisor` | HPC liveness and deadline supervision: heartbeat timeout, per-topic minimum rate, end-to-end latency against the declared budget. **Produces the island-local `OperationModeAvailability` that feeds [I7](#41-migration-list)** — this is what makes `mrm_handler` work when the HPC is silent. Also owns the **recovery verdict**: during a [B2](#b2--keep-the-vehicle-in-its-lane-after-loss-of-the-hpc) hold it re-qualifies a returning HPC over the declared confirmation window — heartbeat restored *and* trajectories valid, fresh and in-envelope — and only then permits hand-back. | [T0](#22-criticality-tiers-on-the-island) | 100 Hz |
-| **N3** | `si_state_machine` | The island safety state machine: `BOOT → SELF_TEST → STANDBY → ADS_ACTIVE → {DEGRADED, LANE_KEEP_HOLD, MRM_PREPARE, MRM_EXECUTE, MRM_COMPLETE, EMERGENCY_STOP} → SAFE_STOP`. Single owner of island mode. `LANE_KEEP_HOLD` is [B2](#b2--keep-the-vehicle-in-its-lane-after-loss-of-the-hpc) (§3.1): N3 owns its hold budget `T_hold`, is the only node that may authorise the hand-back edge `LANE_KEEP_HOLD → ADS_ACTIVE` on [N2](#61-supervision-state-and-fallback)'s recovery verdict, and <mark>latches the ODD class for `v_odd` at entry. When the budget expires it forks: to `MRM_PREPARE` ([B3](#b3--pull-over-if-the-odd-continues-to-fail)) if [`N17`](#62-island-safety-sensing) holds the camera valid and the lane lines are seen, to `EMERGENCY_STOP` ([B4](#b4--emergency-stop-when-the-island-is-blind)) if not.</mark> <mark>`EMERGENCY_STOP` is [B4](#b4--emergency-stop-when-the-island-is-blind): it is entered from **every** other state including `LANE_KEEP_HOLD` and `MRM_EXECUTE`, it is the one transition with no guard and no precondition, and its only successor is `SAFE_STOP`.</mark> Every other transition remains one-way. | [T0](#22-criticality-tiers-on-the-island) | 100 Hz |
+| **N3** | `si_state_machine` | The island safety state machine: `BOOT → SELF_TEST → STANDBY → ADS_ACTIVE → {DEGRADED, LANE_KEEP_HOLD, MRM_PREPARE, MRM_EXECUTE, MRM_COMPLETE, EMERGENCY_STOP} → SAFE_STOP`. Single owner of island mode. `LANE_KEEP_HOLD` is [B2](#b2--keep-the-vehicle-in-its-lane-after-loss-of-the-hpc) (§3.1): N3 owns its hold budget `T_hold`, is the only node that may authorise the hand-back edge `LANE_KEEP_HOLD → ADS_ACTIVE` on [N2](#61-supervision-state-and-fallback)'s recovery verdict, and <mark>latches the ODD class for `v_odd` at entry. When the budget expires it forks: to `MRM_PREPARE` ([B3](#b3--pull-over-if-the-odd-continues-to-fail)) if [`N17`](#62-island-safety-sensing) holds the camera valid and the lane lines are seen, to `EMERGENCY_STOP` ([B4](#b4--emergency-stop-when-the-island-is-blind)) if not.</mark> `EMERGENCY_STOP` is [B4](#b4--emergency-stop-when-the-island-is-blind): it is entered from **every** other state including `LANE_KEEP_HOLD` and `MRM_EXECUTE`, it is the one transition with no guard and no precondition, and its only successor is `SAFE_STOP`. Every other transition remains one-way. | [T0](#22-criticality-tiers-on-the-island) | 100 Hz |
 | **N4** | `si_vehicle_state_estimator` | **Island-local odometry.** Dead-reckons pose, twist and acceleration from wheel speed, steering angle <mark>and the chassis ESC yaw rate and acceleration; the island-attached IMU and GNSS ([D8](#1-inputs-already-fixed-by-the-wg) rank 4), where fitted, tighten the estimate and give it a channel independent of the chassis bus</mark>. Publishes island-domain `Odometry` and `AccelWithCovarianceStamped`. Resolves the [R2](#21-partitioning-rules) orphan-input problem for [I9](#41-migration-list)–[I13](#41-migration-list). | [T0](#22-criticality-tiers-on-the-island) | 100 Hz |
 | **N5** | `si_corridor_monitor` | Lateral containment. **Dual-sourced:** <mark>while the HPC drives,</mark> prefers the compact map-derived corridor from [H3](#7-new-nodes-to-add-on-the-hpc) while it is fresh <mark>and cross-checks it against the camera's lane boundaries from [N14](#62-island-safety-sensing); once the island drives, the camera is the required source and [H3](#7-new-nodes-to-add-on-the-hpc) only refines it. There is no heading-tube fallback: with no camera corridor, N5 declares the corridor lost, which is a [B4](#b4--emergency-stop-when-the-island-is-blind) trigger. Under [B3](#b3--pull-over-if-the-odd-continues-to-fail) it is re-armed against the road edge [N14](#62-island-safety-sensing) observes.</mark> Island-side equivalent of `lane_departure_checker`. | [T1](#22-criticality-tiers-on-the-island) | 50 Hz |
 | **N6** | `si_radar_guard` | Radar track ingest: range, range-rate, closing speed, conservative stopping-distance check. Weather-robust longitudinal channel; see §6.2. | [T1s](#22-criticality-tiers-on-the-island) | 20–50 Hz |
-| **N7** | `si_mrm_profile` | Generates the MRM motion profile when planning is unavailable: deceleration <mark>to the ODD's safe speed `v_odd` and then</mark> to the [B2](#b2--keep-the-vehicle-in-its-lane-after-loss-of-the-hpc) hold speed `v_hold` or to standstill, target standstill point, hazard-lamp and gear sequencing — <mark>the lamps are raised when the manoeuvre is commanded, not when it completes (§3.1)</mark>. **Obstacle-aware** — shortens the ramp against [N16](#62-island-safety-sensing)'s free-space distance and nearest-obstacle range, and reverts to a fixed conservative ramp when [N16](#62-island-safety-sensing) is stale (§2.2 staleness rule). Feeds the fallback tier. | [T1](#22-criticality-tiers-on-the-island) | 50 Hz |
-| **N8** | `si_fault_manager` | Static fault tree + DTC store + fault reaction table. Aggregates [N2](#61-supervision-state-and-fallback), [N5](#61-supervision-state-and-fallback), [N17](#62-island-safety-sensing), [I8](#41-migration-list), the [I19](#41-migration-list)/[I20](#41-migration-list) `/diagnostics` ERRORs, actuator faults, and the FSI hardware fault line into a single fault verdict for [N3](#61-supervision-state-and-fallback). <mark>Holds the distinct fault codes for **sensing blackout** ([B4](#b4--emergency-stop-when-the-island-is-blind)) — </mark>the camera lost — and for a search that found no refuge (in-lane stop under [B2](#b2--keep-the-vehicle-in-its-lane-after-loss-of-the-hpc)'s control law, from [B3](#b3--pull-over-if-the-odd-continues-to-fail)), so the two are separable in the DTC store and in the HARA. A blackout record also names which lower-ranked sensors were still alive.<mark></mark> | [T0](#22-criticality-tiers-on-the-island) | 100 Hz |
-| **N9** | `si_actuator_supervisor` | Actuator-feedback plausibility: commanded vs. achieved steering/brake/torque, response-time check, brake-pressure and EPS availability. Confirms MRM is actually being executed; <mark>non-response is a direct [B4](#b4--emergency-stop-when-the-island-is-blind) trigger, and non-response *during* [B4](#b4--emergency-stop-when-the-island-is-blind) escalates below the node path to the gate's built-in stop and the §8.5 fault line.</mark> | [T1](#22-criticality-tiers-on-the-island) | 100 Hz |
+| **N7** | `si_mrm_profile` | Generates the MRM motion profile when planning is unavailable: deceleration <mark>to the ODD's safe speed `v_odd` and then</mark> to the [B2](#b2--keep-the-vehicle-in-its-lane-after-loss-of-the-hpc) hold speed `v_hold` or to standstill, target standstill point, hazard-lamp and gear sequencing — the lamps are raised when the manoeuvre is commanded, not when it completes (§3.1). **Obstacle-aware** — shortens the ramp against [N16](#62-island-safety-sensing)'s free-space distance and nearest-obstacle range, and reverts to a fixed conservative ramp when [N16](#62-island-safety-sensing) is stale (§2.2 staleness rule). Feeds the fallback tier. | [T1](#22-criticality-tiers-on-the-island) | 50 Hz |
+| **N8** | `si_fault_manager` | Static fault tree + DTC store + fault reaction table. Aggregates [N2](#61-supervision-state-and-fallback), [N5](#61-supervision-state-and-fallback), [N17](#62-island-safety-sensing), [I8](#41-migration-list), the [I19](#41-migration-list)/[I20](#41-migration-list) `/diagnostics` ERRORs, actuator faults, and the FSI hardware fault line into a single fault verdict for [N3](#61-supervision-state-and-fallback). Holds the distinct fault codes for **sensing blackout** ([B4](#b4--emergency-stop-when-the-island-is-blind)) <mark>— the camera lost — and for a search that found no refuge (in-lane stop under [B2](#b2--keep-the-vehicle-in-its-lane-after-loss-of-the-hpc)'s control law, from [B3](#b3--pull-over-if-the-odd-continues-to-fail))</mark>, so the two are separable in the DTC store and in the HARA. <mark>A blackout record also names which lower-ranked sensors were still alive.</mark> | [T0](#22-criticality-tiers-on-the-island) | 100 Hz |
+| **N9** | `si_actuator_supervisor` | Actuator-feedback plausibility: commanded vs. achieved steering/brake/torque, response-time check, brake-pressure and EPS availability. Confirms MRM is actually being executed; non-response is a direct [B4](#b4--emergency-stop-when-the-island-is-blind) trigger, and non-response *during* [B4](#b4--emergency-stop-when-the-island-is-blind) escalates below the node path to the gate's built-in stop and the §8.5 fault line. | [T1](#22-criticality-tiers-on-the-island) | 100 Hz |
 | **N10** | `si_envelope_monitor` | Kinematic/RSS safety envelope: bounds on acceleration, jerk, curvature, curvature rate, yaw rate, and **speed against [N16](#62-island-safety-sensing)'s stopping-distance result** — the island can now enforce a true RSS longitudinal envelope rather than a kinematic-only one. Emits the constraint/veto vector. | [T1](#22-criticality-tiers-on-the-island) | 50 Hz |
 | **N11** | `si_event_recorder` | Protected ring buffer of the pre/post-event window; UDS/DTC export (ISO 14229). Non-real-time, physically separated from the control path. | [T3](#22-criticality-tiers-on-the-island) | 1–10 Hz |
 | **N12** | `si_time_quality_monitor` | gPTP sync state and offset; declares message-freshness checking valid or invalid. A lost time base invalidates every age check in [N1](#61-supervision-state-and-fallback). | [T1](#22-criticality-tiers-on-the-island) | 1 Hz |
@@ -1718,12 +1722,12 @@ a small fixed-size payload, and be processable without a neural network.
 written against: a behaviour may *require* only the camera, and every sensor below it buys speed or ODD
 width, never the behaviour itself.</mark>
 
-| <mark>Rank</mark> | Sensor | Physical link to island | Data class | Rate | What it gives the MRM |
+| Rank | Sensor | Physical link to island | Data class | Rate | What it gives the MRM |
 | :-- | :-- | :-- | :-- | :-- | :-- |
 | <mark>**1 — mandatory**</mark> | **Forward camera** (low resolution, mono) | GMSL or 100BASE-T1, direct | Lane boundaries <mark>+ road edge / kerb + drivable lateral space</mark> | 10–20 Hz | Lane geometry for lateral containment <mark>under [B2](#b2--keep-the-vehicle-in-its-lane-after-loss-of-the-hpc); lane lines and the pull-over space for [B3](#b3--pull-over-if-the-odd-continues-to-fail); the contrast and lane-continuity evidence of §6.4. **The sensor whose loss is [B4](#b4--emergency-stop-when-the-island-is-blind).**</mark> **See open decision 8** — classical CV vs. a certified smart camera emitting lane/object lists. |
-| <mark>**2**</mark> | **Radar** — forward, <mark>and rear-corner on the pull-over side</mark> | CAN FD (native track output) | Object tracks — range, range-rate, azimuth | 20 Hz | Longitudinal obstacle range and closing speed <mark>— AEB's point cloud when no lidar is fitted</mark>. Works in rain, fog, darkness, low sun. <mark>Rear-corner: closing traffic on the pull-over side. Lifts [B2](#b2--keep-the-vehicle-in-its-lane-after-loss-of-the-hpc) to the highway `v_odd` and [B3](#b3--pull-over-if-the-odd-continues-to-fail) above ~30 km/h.</mark> |
-| <mark>**3**</mark> | <mark>**Ultrasonic array**</mark> | <mark>LIN / DSI3 via a sensor interface, or CAN FD</mark> | <mark>Echo distance per sector, near field, up to about 5 m</mark> | <mark>10–20 Hz</mark> | <mark>Near-field clearance for the final metres of [B3](#b3--pull-over-if-the-odd-continues-to-fail) and a tight-to-kerb end; creep and standstill release; [`I20`](#41-migration-list)'s near-field footprint through [`N15`](#62-island-safety-sensing). Blind beyond a few metres: it buys a terminal condition, not speed.</mark> |
-| <mark>**4**</mark> | **Island IMU <mark>/ GNSS</mark>** | direct / CAN FD | Vehicle dynamics <mark>; position and road-class corroboration</mark> | 100 Hz <mark>/ 10 Hz</mark> | <mark>A dynamics channel independent of the chassis bus for [N4](#61-supervision-state-and-fallback); the friction estimate of §6.4; GNSS corroborates the ODD class downward.</mark> |
+| **2** | **Radar** — forward, <mark>and rear-corner on the pull-over side</mark> | CAN FD (native track output) | Object tracks — range, range-rate, azimuth | 20 Hz | Longitudinal obstacle range and closing speed <mark>— AEB's point cloud when no lidar is fitted</mark>. Works in rain, fog, darkness, low sun. <mark>Rear-corner: closing traffic on the pull-over side. Lifts [B2](#b2--keep-the-vehicle-in-its-lane-after-loss-of-the-hpc) to the highway `v_odd` and [B3](#b3--pull-over-if-the-odd-continues-to-fail) above ~30 km/h.</mark> |
+| **3** | <mark>**Ultrasonic array**</mark> | <mark>LIN / DSI3 via a sensor interface, or CAN FD</mark> | <mark>Echo distance per sector, near field, up to about 5 m</mark> | <mark>10–20 Hz</mark> | <mark>Near-field clearance for the final metres of [B3](#b3--pull-over-if-the-odd-continues-to-fail) and a tight-to-kerb end; creep and standstill release; [`I20`](#41-migration-list)'s near-field footprint through [`N15`](#62-island-safety-sensing). Blind beyond a few metres: it buys a terminal condition, not speed.</mark> |
+| **4** | **Island IMU <mark>/ GNSS</mark>** | direct / CAN FD | Vehicle dynamics <mark>; position and road-class corroboration</mark> | 100 Hz <mark>/ 10 Hz</mark> | <mark>A dynamics channel independent of the chassis bus for [N4](#61-supervision-state-and-fallback); the friction estimate of §6.4; GNSS corroborates the ODD class downward.</mark> |
 | <mark>**5 — optional**</mark> | **2D lidar** (single-plane scanner) | 100BASE-T1 or RS-422, direct | Planar scan, ~1080 points | 10–40 Hz | Free-space distance ahead, in-path occupancy, lateral clearance <mark>— as a *confirming* channel: it may disqualify a space or add a hazard, never qualify a refuge or supply a corridor</mark>. Deterministic, classical processing, no learning. |
 | <mark>— *(vehicle)*</mark> | <mark>**Chassis signals** — wheel speed, steering report, ESC yaw rate and acceleration</mark> | <mark>vehicle bus, via [`I16`](#41-migration-list)</mark> | <mark>Vehicle dynamics</mark> | <mark>100 Hz</mark> | <mark>Not an island sensor and not ranked: present on every vehicle. The floor [N4](#61-supervision-state-and-fallback) — and therefore [B4](#b4--emergency-stop-when-the-island-is-blind) — stands on.</mark> |
 
@@ -1745,7 +1749,7 @@ The processing chain adds five nodes <mark>— two of which, [`N15`](#62-island-
 | **N13** | `si_scan_guard` <mark>*(optional — only where a 2D lidar is fitted)*</mark> | 2D lidar ingest. Fixed-size planar occupancy over the ego corridor; extracts free-space distance ahead and nearest in-path return. Publishes a bounded `PointCloud2` for [I19](#41-migration-list)/[I20](#41-migration-list). Classical, no learning, static memory. <mark>Contributes to [N16](#62-island-safety-sensing) as a confirming channel only.</mark> | [T1s](#22-criticality-tiers-on-the-island) | 10–40 Hz |
 | **N14** | `si_vision_guard` | Forward-camera ingest <mark>— **the one mandatory sensing node**</mark>. Extracts left/right lane boundary polylines and a free-space edge. <mark>Also extracts the **road edge or kerb** beyond the outer lane line and the **drivable lateral space** between them — the evidence [N18](#63-pull-over-mrm-after-hpc-loss) searches for an island-detected refuge under [B3](#b3--pull-over-if-the-odd-continues-to-fail).</mark> Feeds [N5](#61-supervision-state-and-fallback) as <mark>the required corridor source once the island drives</mark>. Either classical IPM + line fitting, or pass-through of a certified smart camera's lane/object output. | [T1s](#22-criticality-tiers-on-the-island) | 10–20 Hz |
 | **N15** | `si_proximity_guard` <mark>*(rank 3 — where the ultrasonic array is fitted)*</mark> | Ultrasonic ingest. Near-field clearance per sector; gates creep, standstill release and the final metres of a pull-over. Feeds [I20](#41-migration-list). <mark>Like every source below the camera, it may narrow [N16](#62-island-safety-sensing)'s free space, never create it.</mark> | [T1s](#22-criticality-tiers-on-the-island) | 10–20 Hz |
-| **N16** | `si_safety_world_model` | **The fusion point.** Combines [N6](#61-supervision-state-and-fallback), [N13](#62-island-safety-sensing), [N14](#62-island-safety-sensing), [N15](#62-island-safety-sensing) into the single bounded safety world state defined in §2.2 — nearest in-path obstacle, range, range-rate, TTC, free-space distance, perceived corridor, validity per source. Conservative fusion: a hazard reported by *any* source is taken as present; a corridor is trusted only when sources agree <mark>— and only when the camera is one of them: corridor and lateral free space are anchored on [N14](#62-island-safety-sensing), and the lower-ranked sources may narrow them but never create them</mark>. May additionally take [`N20`](#62-island-safety-sensing)'s optional digest as a **conservative-only** term — it can add a hazard or shorten a distance, never remove one and never make a corridor valid. <mark>Publishes the **no-valid-source** condition explicitly rather than an empty world state, so that a blackout is distinguishable from an empty road — the distinction [B4](#b4--emergency-stop-when-the-island-is-blind) turns on.</mark> | [T1s](#22-criticality-tiers-on-the-island) | 20–50 Hz |
+| **N16** | `si_safety_world_model` | **The fusion point.** Combines [N6](#61-supervision-state-and-fallback), [N13](#62-island-safety-sensing), [N14](#62-island-safety-sensing), [N15](#62-island-safety-sensing) into the single bounded safety world state defined in §2.2 — nearest in-path obstacle, range, range-rate, TTC, free-space distance, perceived corridor, validity per source. Conservative fusion: a hazard reported by *any* source is taken as present; a corridor is trusted only when sources agree <mark>— and only when the camera is one of them: corridor and lateral free space are anchored on [N14](#62-island-safety-sensing), and the lower-ranked sources may narrow them but never create them</mark>. May additionally take [`N20`](#62-island-safety-sensing)'s optional digest as a **conservative-only** term — it can add a hazard or shorten a distance, never remove one and never make a corridor valid. Publishes the **no-valid-source** condition explicitly rather than an empty world state, so that a blackout is distinguishable from an empty road — the distinction [B4](#b4--emergency-stop-when-the-island-is-blind) turns on. | [T1s](#22-criticality-tiers-on-the-island) | 20–50 Hz |
 | **N17** | `si_sensor_health` | Per-sensor availability, frame-rate, blockage and degradation detection — dirt, spray, fog, low sun, radar interference. Sets each source's validity flag for [N16](#62-island-safety-sensing) and drives the island's own ODD verdict. This is deck p.19's "monitoring sensor status, frame rates, weather conditions", now for island-attached sensors. <mark>**Declares sensing blackout** — the camera invalid, whatever the lower-ranked sources report — which is the trigger for [B4](#b4--emergency-stop-when-the-island-is-blind); the declaration is debounced, and the debounce is open decision 15.</mark> **[§3.5](#35-optional-enrichment-the-hpc-object-list)'s object digest is deliberately not an input to this determination:** an island that cannot see is blind whether or not the HPC is still publishing objects, and letting a live HPC mask a blackout would put a guard under [B4](#b4--emergency-stop-when-the-island-is-blind). | [T1s](#22-criticality-tiers-on-the-island) | 5–10 Hz |
 | **N20** | `si_object_digest` *(optional — [§3.5](#35-optional-enrichment-the-hpc-object-list))* | Bounded ingest of the HPC's `/perception/object_recognition/objects`, admitted through [`N1`](#61-supervision-state-and-fallback) like every other cross-domain message. Truncates to a fixed maximum object count ordered by threat, a fixed prediction horizon and a fixed field set; stamps age and distance travelled since receipt using [`N4`](#61-supervision-state-and-fallback); plausibility-checks against [`N16`](#62-island-safety-sensing) where the fields of view overlap; marks the digest invalid once either carry-over bound is exceeded. Publishes `SafetyObjectDigest` on `/si/obj/digest`. **Contributes a conservative term only, and never a validity flag.** Bounds and budgets are open decision 16. | [T1s](#22-criticality-tiers-on-the-island) | 10 Hz |
 
@@ -1774,20 +1778,20 @@ work, and it stays on the HPC. So the split is:
 
 > **The HPC continuously nominates refuges. The island verifies and executes one.**
 
-<mark>That split holds wherever the HPC is there to nominate, and under [B3](#b3--pull-over-if-the-odd-continues-to-fail) it often is not: [B3](#b3--pull-over-if-the-odd-continues-to-fail) is
+That split holds wherever the HPC is there to nominate, and under [B3](#b3--pull-over-if-the-odd-continues-to-fail) it often is not: [B3](#b3--pull-over-if-the-odd-continues-to-fail) is
 reached from [B2](#b2--keep-the-vehicle-in-its-lane-after-loss-of-the-hpc) exactly when the HPC has been lost, and the buffered refuge set ages out like every
 other buffered input (§8.1). The island therefore carries a **second, weaker refuge source of its own**,
 used only when the first offers nothing — the full argument is in [§3.1](#b3--pull-over-if-the-odd-continues-to-fail). The
 split above is unchanged in the part that matters: **the island may now *find* a refuge, but it still
 may not *choose* one.** It takes the first lateral clearance that passes verification, and it compares
-no candidates for legality, because it has no map and no traffic law to compare them with.</mark>
+no candidates for legality, because it has no map and no traffic law to compare them with.
 
 #### The refuge contract
 
 New HPC node [`H8`](#7-new-nodes-to-add-on-the-hpc) (§7) streams a rolling **pull-over refuge** that it has already validated against the
-map and traffic law. <mark>While one is on offer, the island only accepts, shifts within, or rejects it — it
+map and traffic law. While one is on offer, the island only accepts, shifts within, or rejects it — it
 does not invent an alternative. It falls back on its own detection only when the contract below cannot
-be honoured at all, and what it then produces is an `EMERGENCY_ONLY` clearance, never a `LEGAL_STOP`.</mark>
+be honoured at all, and what it then produces is an `EMERGENCY_ONLY` clearance, never a `LEGAL_STOP`.
 
 | Field | Meaning |
 | :-- | :-- |
@@ -1815,7 +1819,7 @@ That guarantee has a consequence worth stating plainly, because it links this fe
 
 | # | Node | Purpose | Tier | Rate |
 | :-- | :-- | :-- | :-- | :-- |
-| **N18** | `si_pull_over_manager` | Implements Autoware's **existing** `pull_over_manager` MRM slot — `OperateMrm` service server, `MrmBehaviorStatus` publisher — so `I7 mrm_handler` selects it natively with no new interface. Owns refuge go/no-go against [`N16`](#62-island-safety-sensing)'s live free space, longitudinal shifting within the window, the `pull_over_available` flag, and the abort ladder below. <mark>Also owns the **island-detected refuge**: when [`H8`](#7-new-nodes-to-add-on-the-hpc) offers none, it searches [`N16`](#62-island-safety-sensing)'s free space for a lateral clearance wide enough and long enough to hold the vehicle, </mark>found by the camera — [`N14`](#62-island-safety-sensing)'s lane lines, road edge and the drivable space between them — and confirmed unoccupied by [`N6`](#61-supervision-state-and-fallback) radar; [`N15`](#62-island-safety-sensing), where fitted, guards the final metres and permits a tight-to-kerb end, and [`N13`](#62-island-safety-sensing), where fitted, may only disqualify it<mark>, and emits it as a refuge with `legality = EMERGENCY_ONLY` and `surface_class = UNKNOWN`. The search is bounded by `T_refuge`, and its three outcomes are distinct: **found**, **positively none**, and **inconclusive** — only the last goes to [B4](#b4--emergency-stop-when-the-island-is-blind) (§3.1). `pull_over_available` is true if *either* source currently offers a refuge, and carries which one.</mark> | [T1](#22-criticality-tiers-on-the-island) | 20 Hz |
+| **N18** | `si_pull_over_manager` | Implements Autoware's **existing** `pull_over_manager` MRM slot — `OperateMrm` service server, `MrmBehaviorStatus` publisher — so `I7 mrm_handler` selects it natively with no new interface. Owns refuge go/no-go against [`N16`](#62-island-safety-sensing)'s live free space, longitudinal shifting within the window, the `pull_over_available` flag, and the abort ladder below. Also owns the **island-detected refuge**: when [`H8`](#7-new-nodes-to-add-on-the-hpc) offers none, it searches [`N16`](#62-island-safety-sensing)'s free space for a lateral clearance wide enough and long enough to hold the vehicle, found by the camera — [`N14`](#62-island-safety-sensing)'s lane lines, road edge and the drivable space between them — and confirmed unoccupied by [`N6`](#61-supervision-state-and-fallback) radar; [`N15`](#62-island-safety-sensing), where fitted, guards the final metres and permits a tight-to-kerb end, and [`N13`](#62-island-safety-sensing), where fitted, may only disqualify it, and emits it as a refuge with `legality = EMERGENCY_ONLY` and `surface_class = UNKNOWN`. The search is bounded by `T_refuge`, and its three outcomes are distinct: **found**, **positively none**, and **inconclusive** — only the last goes to [B4](#b4--emergency-stop-when-the-island-is-blind) (§3.1). `pull_over_available` is true if *either* source currently offers a refuge, and carries which one. | [T1](#22-criticality-tiers-on-the-island) | 20 Hz |
 | **N7** | `si_mrm_planner` *(extended)* | Previously emitted a longitudinal ramp only. Now emits a bounded `autoware_planning_msgs/Trajectory` (≤ 50 points) carrying **both** the lateral displacement path and its velocity profile, for in-lane stop or pull-over alike. Hard bounds on lateral acceleration, steering rate and jerk are applied here. | [T1](#22-criticality-tiers-on-the-island) | 50 Hz |
 
 Extending [`N7`](#61-supervision-state-and-fallback) to emit a standard `Trajectory` rather than adding a separate path planner is the
@@ -1839,12 +1843,12 @@ that makes it safe to attempt at all.
 | No usable window remains | Abandon pull-over → **in-lane stop** |
 | Rear-corner radar detects a closing vehicle on the pull-over side | Hold lateral position, continue decelerating → **in-lane stop** |
 | Lateral path bounds violated, or steering not tracking | Freeze lateral command → **in-lane stop** |
-| [`I19`](#41-migration-list) AEB fires | <mark>**Emergency stop** ([B4](#b4--emergency-stop-when-the-island-is-blind)), abandon the manoeuvre</mark> |
-| Actuator not responding ([`N9`](#61-supervision-state-and-fallback)) | <mark>**Emergency stop** ([B4](#b4--emergency-stop-when-the-island-is-blind))</mark> |
+| [`I19`](#41-migration-list) AEB fires | **Emergency stop** ([B4](#b4--emergency-stop-when-the-island-is-blind)), abandon the manoeuvre |
+| Actuator not responding ([`N9`](#61-supervision-state-and-fallback)) | **Emergency stop** ([B4](#b4--emergency-stop-when-the-island-is-blind)) |
 | <mark>Sensing blackout ([`N17`](#62-island-safety-sensing)) — camera lost, so the refuge can no longer be verified free and the lane lines are gone</mark> | <mark>**Emergency stop** ([B4](#b4--emergency-stop-when-the-island-is-blind)); the in-lane stop is *not* available either, because it too needs the camera's corridor</mark> |
-| <mark>Refuge search concludes: neither source offers a usable refuge</mark> | <mark>Abandon pull-over → **in-lane stop** — the corridor is still there to use</mark> |
-| <mark>`T_refuge` elapsed with the search still inconclusive</mark> | <mark>**Emergency stop** ([B4](#b4--emergency-stop-when-the-island-is-blind)). An inconclusive search is a capability statement, not a road statement</mark> |
-| Standstill reached, near field not clear | Hold, do not release; <mark>hazard lamps stay on — they were raised at entry</mark> |
+| Refuge search concludes: neither source offers a usable refuge | Abandon pull-over → **in-lane stop** — the corridor is still there to use |
+| `T_refuge` elapsed with the search still inconclusive | **Emergency stop** ([B4](#b4--emergency-stop-when-the-island-is-blind)). An inconclusive search is a capability statement, not a road statement |
+| Standstill reached, near field not clear | Hold, do not release; hazard lamps stay on — they were raised at entry |
 
 Every rung degrades toward something the island can definitely do. The manoeuvre never escalates in
 complexity under fault.
@@ -1931,7 +1935,7 @@ argument.
 | :-- | :-- | :-- | :-- |
 | Contrast / MTF collapse; sky-to-scene luminance ratio; flare area; drop and blur detection | camera | <mark>1</mark> | Fog, glare, low sun, dirty or wet lens |
 | Lane-detection continuity and confidence | camera | <mark>1</mark> | Markings obscured by snow, water film, wear |
-| <mark>**Radar-vs-camera detection divergence** — radar reports targets the camera cannot confirm at the same range</mark> | <mark>radar + camera</mark> | <mark>2</mark> | <mark>**Visibility collapse, measured by physical diversity rather than self-report**</mark> |
+| <mark>**Radar-vs-camera detection divergence** — radar reports targets the camera cannot confirm at the same range</mark> | <mark>radar + camera</mark> | <mark>2</mark> | **Visibility collapse, measured by physical diversity rather than self-report** |
 | Longitudinal slip ratio vs. commanded acceleration | wheel speed + IMU <mark>(chassis ESC below rank 4)</mark> | <mark>4</mark> | **Low friction — ice, standing water** |
 | Yaw-rate vs. steering-angle model residual | IMU + steering | <mark>4</mark> | Reduced lateral grip |
 | Max return range collapse; intensity drop; dense near-range returns | 2D lidar | <mark>5 — optional</mark> | Fog, heavy rain, spray, snow |
@@ -1953,7 +1957,7 @@ which sets stopping distance, which sets both the speed limit below and the refu
 
 | # | Node | Purpose | Tier | Rate |
 | :-- | :-- | :-- | :-- | :-- |
-| **N19** | `si_odd_monitor` | Environmental ODD verdict: visibility range estimate, precipitation class, surface-friction estimate, ambient-light class, and the resulting speed ceiling and ODD margin. Applies asymmetric hysteresis. Promoted from the phase-2 option noted in §6.1. <mark>Also raises the **ODD switch demand** — `odd_satisfiable = false` with the failed dimension and the `T_odd` budget — and runs the two-part acceptance test on the answer: the domain [`H4`](#7-new-nodes-to-add-on-the-hpc) declares must lie inside the measured envelope, *and* the vehicle's measured behaviour must converge on that domain's bounds within `T_odd`. It declares `T_odd` per situation rather than as a constant, from the rate at which the margin is falling ([B1](#b1--degrade-the-ads-when-the-odd-cannot-be-held)). It also supplies the `v_max` term of [B2](#b2--keep-the-vehicle-in-its-lane-after-loss-of-the-hpc)'s `v_hold` ramp.</mark> | [T1s](#22-criticality-tiers-on-the-island) | 2–5 Hz |
+| **N19** | `si_odd_monitor` | Environmental ODD verdict: visibility range estimate, precipitation class, surface-friction estimate, ambient-light class, and the resulting speed ceiling and ODD margin. Applies asymmetric hysteresis. Promoted from the phase-2 option noted in §6.1. Also raises the **ODD switch demand** — `odd_satisfiable = false` with the failed dimension and the `T_odd` budget — and runs the two-part acceptance test on the answer: the domain [`H4`](#7-new-nodes-to-add-on-the-hpc) declares must lie inside the measured envelope, *and* the vehicle's measured behaviour must converge on that domain's bounds within `T_odd`. It declares `T_odd` per situation rather than as a constant, from the rate at which the margin is falling ([B1](#b1--degrade-the-ads-when-the-odd-cannot-be-held)). It also supplies the `v_max` term of [B2](#b2--keep-the-vehicle-in-its-lane-after-loss-of-the-hpc)'s `v_hold` ramp. | [T1s](#22-criticality-tiers-on-the-island) | 2–5 Hz |
 
 [`N17`](#62-island-safety-sensing) and [`N19`](#64-odd-degradation-on-weather-and-visibility) answer different questions and must not be merged:
 
@@ -1988,8 +1992,8 @@ are measured on the island, so the limit is defensible without trusting the HPC.
 | :-- | :-- | :-- | :-- |
 | Nominal | none | — | — |
 | **Marginal** | Notify. Publish the reduced verdict; the HPC re-plans conservatively | `OddVerdict` advisory + `SafetyEnvelopeCommand` mode `ALLOW` | — |
-| <mark>**Unsatisfiable**</mark> | <mark>**Demand an ODD switch.** Declare the current domain unsatisfiable; require the HPC to move to one it can meet. The island names no target</mark> | <mark>`OddVerdict` with `odd_satisfiable = false`, the failed dimension, and the `T_odd` budget</mark> | <mark>`T_ack` = 2 s to declare a new domain or declare exhaustion; `T_odd` = 10 s to satisfy it</mark> |
-| **Degraded** | Restrict. Hard speed cap from the law above; enlarge margins <mark>— held underneath the switch, not instead of it</mark> | `SafetyEnvelopeCommand` mode `CONSTRAIN`, `speed_limit = v_max` | 3 s to reach compliance |
+| **Unsatisfiable** | **Demand an ODD switch.** Declare the current domain unsatisfiable; require the HPC to move to one it can meet. The island names no target | `OddVerdict` with `odd_satisfiable = false`, the failed dimension, and the `T_odd` budget | `T_ack` = 2 s to declare a new domain or declare exhaustion; `T_odd` = 10 s to satisfy it |
+| **Degraded** | Restrict. Hard speed cap from the law above; enlarge margins — held underneath the switch, not instead of it | `SafetyEnvelopeCommand` mode `CONSTRAIN`, `speed_limit = v_max` | 3 s to reach compliance |
 | **Beyond ODD, HPC compliant** | Request MRM. Ask the HPC to pull over *while it still can* | mode `MRM` + refuge request | 10 s to begin, 60 s to complete |
 | **Beyond ODD, HPC non-compliant** | Take authority — island pull-over per §6.3 | [`I7`](#41-migration-list) → [`N18`](#63-pull-over-mrm-after-hpc-loss) | — |
 
@@ -2000,42 +2004,42 @@ using only vehicle status it already receives.
 
 #### The ODD switch demand, and what the island verifies
 
-<mark>The **Unsatisfiable** rung is the one that changes the character of the ladder. Every other rung
+The **Unsatisfiable** rung is the one that changes the character of the ladder. Every other rung
 constrains a *quantity*; this one demands a change of *domain*. The vehicle is being driven under a set
 of assumptions — sensing range, friction, lighting, road class — which the island now measures to be
 false, and the remedy is not to drive the same way more slowly but to drive under a different set of
-assumptions that the measurements do support.</mark>
+assumptions that the measurements do support.
 
-<mark>The island does not name that set. It holds no catalogue of the HPC's operating domains, no model of
+The island does not name that set. It holds no catalogue of the HPC's operating domains, no model of
 which L4 behaviours each of them admits, and no means of choosing between them — all three are planning,
 which [R4](#21-partitioning-rules) and [R5](#21-partitioning-rules) keep off the island. What it holds
 is the *measurement*, and a measurement is enough to reject an answer without being able to produce
-one:</mark>
+one:
 
-| <mark>Step</mark> | <mark>Who</mark> | <mark>What crosses the link</mark> |
+| Step | Who | What crosses the link |
 | :-- | :-- | :-- |
-| <mark>1. Declare unsatisfiable</mark> | <mark>island, [`N19`](#64-odd-degradation-on-weather-and-visibility)</mark> | <mark>`OddVerdict.odd_satisfiable = false` + the measured envelope + the failed dimension + the `T_odd` budget</mark> |
-| <mark>2. Select a domain</mark> | <mark>HPC</mark> | <mark>nothing — this is planning, and it happens entirely on the HPC</mark> |
-| <mark>3. Declare the new active domain</mark> | <mark>HPC, [`H4`](#7-new-nodes-to-add-on-the-hpc)</mark> | <mark>`OddStatus.active_odd` + its bounds + `odd_switch_state`, within `T_ack`</mark> |
-| <mark>4. Verify the declaration</mark> | <mark>island, [`N19`](#64-odd-degradation-on-weather-and-visibility)</mark> | <mark>nothing — the bounds are compared against the island's own envelope</mark> |
-| <mark>5. Verify the behaviour</mark> | <mark>island, [`N2`](#61-supervision-state-and-fallback)/[`N19`](#64-odd-degradation-on-weather-and-visibility)</mark> | <mark>nothing — measured speed, acceleration and curvature are compared against the declared bounds, within `T_odd`</mark> |
-| <mark>6. Accept, and release the cap</mark> | <mark>island, [`N3`](#61-supervision-state-and-fallback)</mark> | <mark>`SafetyEnvelopeCommand` mode returns to `ALLOW`; `OddVerdict` carries the accepted domain</mark> |
+| 1. Declare unsatisfiable | island, [`N19`](#64-odd-degradation-on-weather-and-visibility) | `OddVerdict.odd_satisfiable = false` + the measured envelope + the failed dimension + the `T_odd` budget |
+| 2. Select a domain | HPC | nothing — this is planning, and it happens entirely on the HPC |
+| 3. Declare the new active domain | HPC, [`H4`](#7-new-nodes-to-add-on-the-hpc) | `OddStatus.active_odd` + its bounds + `odd_switch_state`, within `T_ack` |
+| 4. Verify the declaration | island, [`N19`](#64-odd-degradation-on-weather-and-visibility) | nothing — the bounds are compared against the island's own envelope |
+| 5. Verify the behaviour | island, [`N2`](#61-supervision-state-and-fallback)/[`N19`](#64-odd-degradation-on-weather-and-visibility) | nothing — measured speed, acceleration and curvature are compared against the declared bounds, within `T_odd` |
+| 6. Accept, and release the cap | island, [`N3`](#61-supervision-state-and-fallback) | `SafetyEnvelopeCommand` mode returns to `ALLOW`; `OddVerdict` carries the accepted domain |
 
-<mark>**Steps 4 and 5 are separate on purpose.** A declaration the island can check against its own
+**Steps 4 and 5 are separate on purpose.** A declaration the island can check against its own
 measurements catches an HPC that reports a domain it *could not* be in. Checking the vehicle's
 behaviour afterwards catches an HPC that reports a domain it *is not* in — a different failure, and the
 more dangerous one, because the declaration is plausible. A domain that passes step 4 and fails step 5
 is recorded by [`N11`](#61-supervision-state-and-fallback) as a SOTIF event under the same rule as verdict disagreement below:
-it is evidence about the HPC that no other mechanism produces.</mark>
+it is evidence about the HPC that no other mechanism produces.
 
-<mark>**The cap does not come off for the declaration.** It comes off for the behaviour. Between steps 1 and
+**The cap does not come off for the declaration.** It comes off for the behaviour. Between steps 1 and
 6 the vehicle is held at `v_max` by the `CONSTRAIN` rung regardless of what the HPC has declared, so a
-false declaration buys the HPC no speed — only time, and only `T_odd` of it.</mark>
+false declaration buys the HPC no speed — only time, and only `T_odd` of it.
 
-<mark>**Exhaustion is a valid answer.** If the HPC declares at step 3 that none of its domains is
+**Exhaustion is a valid answer.** If the HPC declares at step 3 that none of its domains is
 satisfiable, the ladder moves straight to **Request MRM** — an HPC-executed pull-over, with the map and
 the traffic law available to it, which is strictly better than the island-executed one under
-[B3](#b3--pull-over-if-the-odd-continues-to-fail). `T_odd` is not run out on an HPC that answered honestly.</mark>
+[B3](#b3--pull-over-if-the-odd-continues-to-fail). `T_odd` is not run out on an HPC that answered honestly.
 
 #### Hysteresis, and why it is asymmetric
 
@@ -2076,11 +2080,11 @@ it is false. This is the concrete payoff of making fallback capability observabl
 for a local joystick, so that a person can drive the vehicle when the HPC cannot — [B5](#b5--tele-operation-from-the-remote-command-centre) from the RCC on
 streamed island sensing, [B6](#b6--manual-joystick-control-without-streamed-sensing) from beside the vehicle on none.</mark>
 
-| # | Node | Purpose | Tier | Rate |
+| <mark>#</mark> | <mark>Node</mark> | <mark>Purpose</mark> | <mark>Tier</mark> | <mark>Rate</mark> |
 | :-- | :-- | :-- | :-- | :-- |
-| <mark>**N21**</mark> | <mark>`si_rcc_link`</mark> | <mark>**The communication module's island end.** Owns the cellular modem and the RCC session: mutual authentication, heartbeat, measured round-trip latency and stream age, and the E2E check of every remote command before it reaches [`I1`](#41-migration-list)'s remote source. Declares the link lost on `T_link`, which is [B5](#b5--tele-operation-from-the-remote-command-centre)'s exit to the in-lane stop or [B4](#b4--emergency-stop-when-the-island-is-blind). Also carries the RCC's status uplink — island state, fault summary, </mark>the ADS's **remote take-over request** in [B1](#b1--degrade-the-ads-when-the-odd-cannot-be-held)–[B3](#b3--pull-over-if-the-odd-continues-to-fail),<mark> and an assistance request after [B3](#b3--pull-over-if-the-odd-continues-to-fail) or [B4](#b4--emergency-stop-when-the-island-is-blind)</mark> | <mark>[T1](#22-criticality-tiers-on-the-island) for the command and liveness path · [T3](#22-criticality-tiers-on-the-island) for the status uplink</mark> | <mark>50 Hz commands · 10 Hz heartbeat</mark> |
+| <mark>**N21**</mark> | <mark>`si_rcc_link`</mark> | <mark>**The communication module's island end.** Owns the cellular modem and the RCC session: mutual authentication, heartbeat, measured round-trip latency and stream age, and the E2E check of every remote command before it reaches [`I1`](#41-migration-list)'s remote source. Declares the link lost on `T_link`, which is [B5](#b5--tele-operation-from-the-remote-command-centre)'s exit to the in-lane stop or [B4](#b4--emergency-stop-when-the-island-is-blind). Also carries the RCC's status uplink — island state, fault summary, the ADS's **remote take-over request** in [B1](#b1--degrade-the-ads-when-the-odd-cannot-be-held)–[B3](#b3--pull-over-if-the-odd-continues-to-fail), and an assistance request after [B3](#b3--pull-over-if-the-odd-continues-to-fail) or [B4](#b4--emergency-stop-when-the-island-is-blind). *How it does so — modem, session, security — is deferred to the next design ([§8.6](#86-the-rcc-link-and-the-local-control-port))*</mark> | <mark>[T1](#22-criticality-tiers-on-the-island) for the command and liveness path · [T3](#22-criticality-tiers-on-the-island) for the status uplink</mark> | <mark>50 Hz commands · 10 Hz heartbeat</mark> |
 | <mark>**N22**</mark> | <mark>`si_teleop_streamer`</mark> | <mark>[B5](#b5--tele-operation-from-the-remote-command-centre)'s **sensor stream**. Compresses the forward camera to a bounded bit rate and packs radar tracks, ultrasonic clearances where fitted and [`N4`](#61-supervision-state-and-fallback)'s ego state alongside, with the capture timestamps the RCC needs to show their age. Reads the sensors through the same ingest as [`N14`](#62-island-safety-sensing), [`N6`](#61-supervision-state-and-fallback) and [`N15`](#62-island-safety-sensing); never writes to them</mark> | <mark>[T3](#22-criticality-tiers-on-the-island), in its own partition, below P2</mark> | <mark>10–30 Hz video · 20 Hz tracks</mark> |
-| <mark>**N23**</mark> | <mark>`si_local_control`</mark> | <mark>**The local control port** for [B6](#b6--manual-joystick-control-without-streamed-sensing): the wired joystick input and the short-range radio receiver. Pairing, dead-man, link heartbeat, and the creep limit `v_local`; publishes the **local** command source into [`I1`](#41-migration-list), which outranks the remote one, and requests the stop on release or on `T_local`</mark> | <mark>[T1](#22-criticality-tiers-on-the-island)</mark> | <mark>50 Hz</mark> |
+| <mark>**N23**</mark> | <mark>`si_local_control`</mark> | <mark>**The local control port** for [B6](#b6--manual-joystick-control-without-streamed-sensing): the wired joystick input. Connection detection, dead-man, link heartbeat, and the creep limit `v_local`; publishes the **local** command source into [`I1`](#41-migration-list), which outranks the remote one, and requests the stop on release or on `T_local`</mark> | <mark>[T1](#22-criticality-tiers-on-the-island)</mark> | <mark>50 Hz</mark> |
 
 <mark>**The streamer is the heaviest load on the island and the least critical**, which is the combination
 the partitioning exists to handle. Video compression must not take time from P0–P2, so [`N22`](#65-remote-command-and-control-link-and-local-control-port) runs in
@@ -2099,7 +2103,9 @@ fleet services; what crosses [`N21`](#65-remote-command-and-control-link-and-loc
 behaviour starts, what the person may command, how fast the vehicle may go, how the island notices a
 failing link or an absent operator, and how it stops. [B6](#b6--manual-joystick-control-without-streamed-sensing) starts only from a standstill. [B5](#b5--tele-operation-from-the-remote-command-centre) starts from a
 standstill, or takes a moving vehicle over from [B1](#b1--degrade-the-ads-when-the-odd-cannot-be-held), [B2](#b2--keep-the-vehicle-in-its-lane-after-loss-of-the-hpc) or [B3](#b3--pull-over-if-the-odd-continues-to-fail) when the ADS requests it. A path-based
-remote-assistance mode is left for stage 2 (open decision 19(e)). Everything here reuses the island's existing command
+remote-assistance mode is left for stage 2 (open decision 19(e)). </mark>**Two things are deferred to the next design**:
+the RCC communication that [B5](#b5--tele-operation-from-the-remote-command-centre) runs over — module, session, security, video transport — and a radio link for
+[B6](#b6--manual-joystick-control-without-streamed-sensing), which in this design is **wired only**. Their requirements are stated here; their realisation is not.<mark> Everything here reuses the island's existing command
 path: the gate [`I1`](#41-migration-list), validation by [`I8`](#41-migration-list) and [`N10`](#61-supervision-state-and-fallback), and the stop operators [`I6`](#41-migration-list) and [`I5`](#41-migration-list). The only
 additions are the three nodes of §6.5 and the interface in [§8.6](#86-the-rcc-link-and-the-local-control-port).</mark>
 
@@ -2118,6 +2124,13 @@ additions are the three nodes of §6.5 and the interface in [§8.6](#86-the-rcc-
    the RCC. The gate's source ranking already encodes this (§10.4).</mark>
 
 #### B5 — remote driving from the RCC
+
+<mark>**What this design fixes, and what it defers.** It fixes [B5](#b5--tele-operation-from-the-remote-command-centre)'s behaviour: how it starts, what the driver
+commands, how fast the vehicle may go, and how the island stops it when the link fails. It does not
+design the link. The cellular module and its redundancy, the RCC session and its keys, the protection
+profile and the video transport are deferred to the next design. Until then the link figures below —
+50 Hz commands, `T_link` = 300 ms, the command-age bounds, the frame-stamp echo — are the requirements
+that design must meet.</mark>
 
 <mark>**What the remote driver sends.** A steering-angle setpoint and a signed speed setpoint at 50 Hz, plus
 a gear request, the indicators, the hazard lamps and the horn. Every command carries a dead-man flag
@@ -2183,7 +2196,7 @@ counts the drops. A run of drops longer than `T_link` is a link loss.</mark>
 
 | <mark>Check</mark> | <mark>Bound (proposal)</mark> | <mark>On failure</mark> |
 | :-- | :-- | :-- |
-| <mark>Session ID, sequence number, MAC and CRC (profile SI-E2E/R, §8.6)</mark> | <mark>exact; replay window 64</mark> | <mark>drop, and raise a security event to [`N8`](#61-supervision-state-and-fallback)</mark> |
+| <mark>Session ID, sequence number, authentication and CRC — the RCC profile, deferred to the next design (§8.6)</mark> | <mark>exact; replay window 64</mark> | <mark>drop, and raise a security event to [`N8`](#61-supervision-state-and-fallback)</mark> |
 | <mark>Dead-man held</mark> | <mark>every command</mark> | <mark>speed setpoint to zero; brake held</mark> |
 | <mark>Command validity</mark> | <mark>100 ms per command</mark> | <mark>setpoint decays to zero speed; then `T_link`</mark> |
 | <mark>Command age (frame-stamp echo)</mark> | <mark>soft 600 ms · hard 1.0 s</mark> | <mark>soft: Degraded, `v_teleop` cut · hard: LinkLost</mark> |
@@ -2308,26 +2321,26 @@ and the take-over can still happen there.</mark>
 
 #### B6 — joystick control at the vehicle
 
-<mark>**The device.** A handheld joystick controller of the kind used for cableless control of machinery. It
+<mark>**The device.** A handheld joystick **pendant on a cable**, plugged into a CAN FD connector on the vehicle. It
 has proportional steering and speed controls, a forward / neutral / reverse selector, horn and hazards,
-and two safety controls:
-- a **three-position enabling switch**, the dead-man: commands count only while it is held in the
-  middle position;
-- a latching **emergency-stop** button.</mark>
+and two safety controls:</mark>
+- <mark>a **three-position enabling switch**, the dead-man: commands count only while it is held in the
+  middle position;</mark>
+- <mark>a latching **emergency-stop** button.</mark>
 
-<mark>The controller connects to [`N23`](#65-remote-command-and-control-link-and-local-control-port) either **by cable**, on a CAN FD connector on the vehicle, or
-**through a radio receiver** plugged into the same connector. So [`N23`](#65-remote-command-and-control-link-and-local-control-port) sees one interface whichever is
-used. The radio controller and receiver should follow IEC 62745 (cableless control of machinery),
-which requires a stop on loss of communication and a defined pairing procedure. Its stop functions
-should meet PL d or the equivalent.</mark>
+<mark>The cable is what keeps the operator at the vehicle, and it is the only link [`N23`](#65-remote-command-and-control-link-and-local-control-port) supports in this
+design. **A short-range radio link is deferred to the next design**, with IEC 62745 (cableless control
+of machinery) as its reference: that design must add pairing, a stop on loss of the radio link, and the
+radio band, which differs by region.</mark>
 
-<mark>**Pairing and entry.**
-- Pairing needs physical presence: a button or key switch on the vehicle, pressed while the vehicle
-  is at standstill.
-- Only one device is paired at a time, and pairing ends when control is released.
-- **[B6](#b6--manual-joystick-control-without-streamed-sensing)** starts when the paired device's enabling switch is held and [`N3`](#61-supervision-state-and-fallback) grants `LOCAL`.
-- If a **[B5](#b5--tele-operation-from-the-remote-command-centre)** session is active, the local request **pre-empts** it. If the vehicle is moving under
-  **[B5](#b5--tele-operation-from-the-remote-command-centre)**, the island first stops it, then grants `LOCAL` at standstill.</mark>
+<mark>**Connecting and entry.**</mark>
+- <mark>The pendant is plugged in at standstill and a key switch on the vehicle is turned: physical presence,
+  twice over.</mark>
+- <mark>The port has one connector, so only one pendant can be connected. Unplugging it ends control, and
+  stops the vehicle.</mark>
+- <mark>[B6](#b6--manual-joystick-control-without-streamed-sensing) starts when the pendant's enabling switch is held and [`N3`](#61-supervision-state-and-fallback) grants `LOCAL`.</mark>
+- <mark>If a [B5](#b5--tele-operation-from-the-remote-command-centre) session is active, the local request **pre-empts** it. If the vehicle is moving under
+  [B5](#b5--tele-operation-from-the-remote-command-centre), the island first stops it, then grants `LOCAL` at standstill.</mark>
 
 <mark>**What the operator commands.** A steering setpoint and a speed setpoint, at 50 Hz on the SI-E2E/B
 profile, which fits CAN FD:
@@ -2341,11 +2354,11 @@ profile, which fits CAN FD:
 secures:
 - the enabling switch is released, or squeezed through to its third position;
 - the emergency-stop button is pressed;
-- the local link is silent for `T_local` = **200 ms**.</mark>
+- the cable link is silent for `T_local` = **200 ms**, which is what a pulled or broken cable looks like.</mark>
 
 <mark>From 5 km/h that stop is about 0.85 m including all latencies; from 3 km/h in reverse, about 0.45 m.
-The emergency-stop button should also be **wired directly to the actuator gateway's stop input**, in
-the same way as the §8.5 FSI fault line, so that the stop does not depend on island software. That is a
+The emergency-stop button should also be **wired directly to the actuator gateway's stop input** —
+through the same cable, which makes it simple to do — in the same way as the §8.5 FSI fault line, so that the stop does not depend on island software. That is a
 Part-2 hardware item.</mark>
 
 <mark>**Leaving B6.** The operator releases control at standstill, and the island goes to `SAFE_STOP`.
@@ -2363,17 +2376,17 @@ it is automated again.</mark>
 
 #### Failure modes and what the island does
 
-| <mark>Failure</mark> | <mark>Detected by</mark> | <mark>Island response</mark> |
+| Failure | <mark>Detected by</mark> | <mark>Island response</mark> |
 | :-- | :-- | :-- |
-| <mark>Cellular link drops</mark> | <mark>[`N21`](#65-remote-command-and-control-link-and-local-control-port): `T_link`</mark> | <mark>LinkLost: in-lane stop, or **[B4](#b4--emergency-stop-when-the-island-is-blind)** without the camera</mark> |
-| <mark>Link slows down, or video freezes at the RCC</mark> | <mark>[`N21`](#65-remote-command-and-control-link-and-local-control-port): command age (frame-stamp echo)</mark> | <mark>Degraded: `v_teleop` cut; LinkLost above the hard bound</mark> |
-| <mark>Replayed, forged or corrupted command</mark> | <mark>[`N21`](#65-remote-command-and-control-link-and-local-control-port): SI-E2E/R checks</mark> | <mark>Command dropped, security event to [`N8`](#61-supervision-state-and-fallback); repeated drops are a link loss</mark> |
+| <mark>RCC link drops</mark> | <mark>[`N21`](#65-remote-command-and-control-link-and-local-control-port): `T_link`</mark> | <mark>LinkLost: in-lane stop, or **[B4](#b4--emergency-stop-when-the-island-is-blind)** without the camera</mark> |
+| <mark>Link slows down, or video freezes at the RCC</mark> | <mark>[`N21`](#65-remote-command-and-control-link-and-local-control-port): command age (frame-stamp echo)</mark> | Degraded: <mark>`v_teleop` cut;</mark> <mark>LinkLost above the hard bound</mark> |
+| <mark>Replayed, forged or corrupted command</mark> | <mark>[`N21`](#65-remote-command-and-control-link-and-local-control-port): the RCC profile's checks (next design)</mark> | <mark>Command dropped, security event to [`N8`](#61-supervision-state-and-fallback); repeated drops are a link loss</mark> |
 | <mark>Remote driver lets go or is incapacitated</mark> | <mark>dead-man flag</mark> | <mark>Speed setpoint to zero, brake held</mark> |
 | <mark>Driver steers toward an obstacle</mark> | <mark>[`I19`](#41-migration-list), [`I20`](#41-migration-list), [`N10`](#61-supervision-state-and-fallback)</mark> | <mark>Braked or vetoed whatever the command says</mark> |
 | <mark>Camera lost during **[B5](#b5--tele-operation-from-the-remote-command-centre)**</mark> | <mark>[`N17`](#62-island-safety-sensing)</mark> | <mark>**[B4](#b4--emergency-stop-when-the-island-is-blind)**: the driver is no longer shown a validated picture</mark> |
 | <mark>Two RCC sessions request the same vehicle</mark> | <mark>[`N21`](#65-remote-command-and-control-link-and-local-control-port): one session at a time</mark> | <mark>The second request is refused</mark> |
 | <mark>Local operator arrives during **[B5](#b5--tele-operation-from-the-remote-command-centre)**</mark> | <mark>[`N23`](#65-remote-command-and-control-link-and-local-control-port)</mark> | <mark>**[B6](#b6--manual-joystick-control-without-streamed-sensing)** pre-empts: stop first, then `LOCAL`</mark> |
-| <mark>Joystick radio drops</mark> | <mark>[`N23`](#65-remote-command-and-control-link-and-local-control-port): `T_local`</mark> | <mark>Immediate stop, [`I6`](#41-migration-list) then [`I5`](#41-migration-list)</mark> |
+| <mark>Joystick cable pulled or broken</mark> | <mark>[`N23`](#65-remote-command-and-control-link-and-local-control-port): `T_local`</mark> | <mark>Immediate stop, [`I6`](#41-migration-list) then [`I5`](#41-migration-list)</mark> |
 | <mark>Joystick enabling switch released, or emergency stop pressed</mark> | <mark>[`N23`](#65-remote-command-and-control-link-and-local-control-port), plus the hardwired stop</mark> | <mark>Immediate stop</mark> |
 | <mark>Actuators not tracking, in either behaviour</mark> | <mark>[`N9`](#61-supervision-state-and-fallback)</mark> | <mark>**[B4](#b4--emergency-stop-when-the-island-is-blind)**</mark> |
 
@@ -2392,11 +2405,11 @@ Without them, "connect Autoware to the island" means publishing the full ROS gra
 | **H1** | `si_bridge_hpc` | In-house E2E egress/ingress counterpart of [N1](#61-supervision-state-and-fallback) (§8.4). Wraps each safety payload with Data ID, sequence counter, CRC, length and gPTP timestamp; enforces the publication rate; is the *only* HPC node permitted to write to the island link. | per-interface |
 | **H2** | `hpc_capability_reporter` | Condenses `diagnostic_graph_aggregator` / `hazard_status_converter` / `pipeline_latency_monitor` output into a **fixed-size capability vector** (perception OK, localization OK, planning OK, per-pipeline latency margin, confidence floor) plus a self-test summary. Replaces free-form diagnostics on the link. | 10 Hz |
 | **H3** | `hpc_corridor_publisher` | Emits a compact drivable-corridor strip (left/right boundary polylines, fixed point count) around the current trajectory, derived from the Lanelet2 map. This is the map, reduced to what the island can hold — enabling [N5](#61-supervision-state-and-fallback) and [N7](#61-supervision-state-and-fallback) without shipping the map. | 10 Hz |
-| **H4** | `hpc_odd_reporter` | ODD and geofence validity, weather/visibility class, unmapped-area and roadworks flags — as a small enumerated status, not raw sensor data. <mark>Also carries the HPC's **declared active operating domain** and its bounds — speed ceiling, required sensing range, assumed friction — plus an `odd_switch_state` enum (`STEADY` / `SWITCHING` / `EXHAUSTED`). This is the HPC's half of the [B1](#b1--degrade-the-ads-when-the-odd-cannot-be-held) exchange: the island demands a switch, and this is the node that answers within `T_ack`. The bounds are what the island verifies against its own envelope, so they must be the domain's *declared* limits, not the vehicle's current state.</mark> | 10 Hz |
+| **H4** | `hpc_odd_reporter` | ODD and geofence validity, weather/visibility class, unmapped-area and roadworks flags — as a small enumerated status, not raw sensor data. Also carries the HPC's **declared active operating domain** and its bounds — speed ceiling, required sensing range, assumed friction — plus an `odd_switch_state` enum (`STEADY` / `SWITCHING` / `EXHAUSTED`). This is the HPC's half of the [B1](#b1--degrade-the-ads-when-the-odd-cannot-be-held) exchange: the island demands a switch, and this is the node that answers within `T_ack`. The bounds are what the island verifies against its own envelope, so they must be the domain's *declared* limits, not the vehicle's current state. | 10 Hz |
 | **H5** | `hpc_trajectory_conditioner` | Resamples and bounds the planned trajectory to the island's fixed-capacity message (**250 points**, as already enforced in the nano-ros port), guarantees monotonic timestamps, fills per-point velocity/acceleration, and rejects malformed trajectories *before* they are transmitted. | 10 Hz |
 | **H6** | `hpc_island_state_client` | Subscribes to island state and MRM state; republishes into `/system/fail_safe/mrm_state` and the AD API so that operator UI, logging and `command_mode_decider` see the island's verdict. Closes the loop for graded reaction steps 1–2. | 10 Hz |
 | **H7** | `hpc_heartbeat` | Deterministic, minimal heartbeat with a rolling self-test result. Kept separate from [H2](#7-new-nodes-to-add-on-the-hpc) so that it can be given the highest RT priority and the shortest code path. | 50–100 Hz |
-| **H8** | `hpc_refuge_publisher` | Streams the rolling, map-validated and law-checked **pull-over refuge** defined in §6.3, plus the explicit "no refuge available" declaration when it cannot honour the coverage guarantee. This is the node that makes <mark>a *lawful*</mark> island pull-over possible at all <mark>— the island's own detection ([`N18`](#63-pull-over-mrm-after-hpc-loss)) can find clear space without it, but only as an `EMERGENCY_ONLY` stop</mark>. | 2 Hz |
+| **H8** | `hpc_refuge_publisher` | Streams the rolling, map-validated and law-checked **pull-over refuge** defined in §6.3, plus the explicit "no refuge available" declaration when it cannot honour the coverage guarantee. This is the node that makes a *lawful* island pull-over possible at all — the island's own detection ([`N18`](#63-pull-over-mrm-after-hpc-loss)) can find clear space without it, but only as an `EMERGENCY_ONLY` stop. | 2 Hz |
 | **H9** | `hpc_shadow_control_monitor` *(optional)* | Runs the same controller configuration on the HPC and compares against the island's echoed command; flags divergence. **Field-monitoring and validation only — no safety authority.** | 50 Hz |
 
 ---
@@ -2416,7 +2429,7 @@ end-to-end protected (§8.4) and rate-declared.
 | Acceleration (reference) | `/localization/acceleration` | `geometry_msgs/AccelWithCovarianceStamped` | 50 Hz | 60 ms | SI-E2E/A |
 | Operation mode state | `/api/operation_mode/state` | `autoware_adapi_v1_msgs/OperationModeState` | 10 Hz + on change | 300 ms | SI-E2E/A |
 | Capability vector | `/si/in/capability` | *new* `HpcCapability` <mark>(including `remote_takeover_requested` and its reason)</mark> | 10 Hz | 300 ms | SI-E2E/B |
-| ODD status <mark>+ declared active domain</mark> | `/si/in/odd_status` | *new* `OddStatus` <mark>(geofence validity, weather class, roadworks flags, **`active_odd` with its speed / sensing-range / friction bounds**, `odd_switch_state`)</mark> | 10 Hz | 300 ms | SI-E2E/B |
+| ODD status + declared active domain | `/si/in/odd_status` | *new* `OddStatus` (geofence validity, weather class, roadworks flags, **`active_odd` with its speed / sensing-range / friction bounds**, `odd_switch_state`) | 10 Hz | 300 ms | SI-E2E/B |
 | Heartbeat + self-test | `/si/in/heartbeat` | *new* `HpcHeartbeat` | 100 Hz | **20 ms** | SI-E2E/B |
 | **Pull-over refuge** | `/si/in/refuge` | *new* `PullOverRefuge` | 2 Hz | 2 s | SI-E2E/A |
 | Auxiliary commands | `/control/command/{gear,turn_indicators,hazard_lights}_cmd` | `autoware_vehicle_msgs/*` | 10 Hz | 300 ms | SI-E2E/A |
@@ -2428,9 +2441,9 @@ Under [D7](#1-inputs-already-fixed-by-the-wg), **every input on this table is no
 | :-- | :-- |
 | Kinematic state, acceleration | [`N4`](#61-supervision-state-and-fallback) dead reckoning — the island cross-checks the HPC estimate against it and, on divergence or loss, uses [N4](#61-supervision-state-and-fallback) alone |
 | Drivable corridor | [`N14`](#62-island-safety-sensing) <mark>camera</mark> lane boundaries <mark>— and nothing below them: with no camera corridor the island enters [B4](#b4--emergency-stop-when-the-island-is-blind)</mark> |
-| Pull-over refuge | The last refuge whose `validity_distance_m` still covers the stopping distance; <mark>then [`N18`](#63-pull-over-mrm-after-hpc-loss)'s **island-detected** `EMERGENCY_ONLY` clearance, searched for at most `T_refuge`</mark>; then in-lane stop |
+| Pull-over refuge | The last refuge whose `validity_distance_m` still covers the stopping distance; then [`N18`](#63-pull-over-mrm-after-hpc-loss)'s **island-detected** `EMERGENCY_ONLY` clearance, searched for at most `T_refuge`; then in-lane stop |
 | Trajectory | The buffered last-valid trajectory, then [`N7`](#61-supervision-state-and-fallback)'s generated MRM profile |
-| Capability vector, ODD status | [`N2`](#61-supervision-state-and-fallback) liveness verdict and [`N17`](#62-island-safety-sensing) island sensor health. <mark>After HPC loss, the road class of the last valid `active_odd` is latched for [B2](#b2--keep-the-vehicle-in-its-lane-after-loss-of-the-hpc)'s `v_odd`; with none valid, the most restrictive class.</mark> <mark>A silent `active_odd` is not a satisfied one: silence past `T_ack` is exactly the [B1](#b1--degrade-the-ads-when-the-odd-cannot-be-held) timeout, and escalates by §3.2's takeover rule rather than being substituted for</mark> |
+| Capability vector, ODD status | [`N2`](#61-supervision-state-and-fallback) liveness verdict and [`N17`](#62-island-safety-sensing) island sensor health. <mark>After HPC loss, the road class of the last valid `active_odd` is latched for [B2](#b2--keep-the-vehicle-in-its-lane-after-loss-of-the-hpc)'s `v_odd`; with none valid, the most restrictive class.</mark> A silent `active_odd` is not a satisfied one: silence past `T_ack` is exactly the [B1](#b1--degrade-the-ads-when-the-odd-cannot-be-held) timeout, and escalates by §3.2's takeover rule rather than being substituted for |
 | Object list *(optional)* | [`N16`](#62-island-safety-sensing)'s own perceived obstacles; then nothing at all. It is the one row whose substitute is *absence* — [§3.5](#35-optional-enrichment-the-hpc-object-list) is written so that losing it costs information, not capability |
 
 That is the mechanism that lets [I9](#41-migration-list)–[I13](#41-migration-list), [I19](#41-migration-list) and [I20](#41-migration-list) keep running after HPC loss. **No row on this table
@@ -2440,11 +2453,11 @@ is a hard dependency of the safety core** — and the last row is not a dependen
 
 | Signal | Topic | Type | Rate |
 | :-- | :-- | :-- | :-- |
-| Island safety state | `/si/out/state` | *new* `IslandState` (mode — including `LANE_KEEP_HOLD` for [B2](#b2--keep-the-vehicle-in-its-lane-after-loss-of-the-hpc) <mark>and `EMERGENCY_STOP` for [B4](#b4--emergency-stop-when-the-island-is-blind)</mark> — fault code, authority holder, corridor source in use <mark>*or the blackout flag when there is none*</mark>, lateral deviation, remaining hold budget `T_hold` <mark>, the latched ODD class and its `v_odd`, the current `v_hold` and the `v_entry` the ramp is aimed at</mark>) | 50 Hz |
+| Island safety state | `/si/out/state` | *new* `IslandState` (mode — including `LANE_KEEP_HOLD` for [B2](#b2--keep-the-vehicle-in-its-lane-after-loss-of-the-hpc) and `EMERGENCY_STOP` for [B4](#b4--emergency-stop-when-the-island-is-blind) — fault code, authority holder, corridor source in use *or the blackout flag when there is none*, lateral deviation, remaining hold budget `T_hold` <mark>, the latched ODD class and its `v_odd`, the current `v_hold` and the `v_entry` the ramp is aimed at</mark>) | 50 Hz |
 | Safety world state | `/si/out/safety_world` | *new* `SafetyWorldState` (nearest in-path obstacle range and range-rate, TTC, free-space distance, perceived corridor, per-sensor validity) | 20 Hz |
 | Island sensor health | `/si/out/sensor_health` | *new* `IslandSensorHealth` (per-sensor availability, blockage, degradation cause <mark>, and which [D8](#1-inputs-already-fixed-by-the-wg) ranks are fitted — the island's sensor rung</mark>) | 5 Hz |
-| **Island ODD verdict** <mark>+ switch demand</mark> | `/si/out/odd_verdict` | *new* `OddVerdict` (visibility range, precipitation class, friction estimate, ambient light, derived `v_max`, ODD margin <mark>, **`odd_satisfiable`**, the failed ODD dimension, the remaining `T_odd` budget, and the accepted domain once there is one</mark>) | 2–5 Hz |
-| **Fallback availability** | `/si/out/fallback_availability` | *new* `FallbackAvailability` (`pull_over_available`, reason, distance to next refuge <mark>, and `refuge_source` — `HPC_NOMINATED` or `ISLAND_DETECTED` — so that the HPC and the operator can tell a lawful refuge from a clearance</mark>) | 2 Hz |
+| **Island ODD verdict** + switch demand | `/si/out/odd_verdict` | *new* `OddVerdict` (visibility range, precipitation class, friction estimate, ambient light, derived `v_max`, ODD margin , **`odd_satisfiable`**, the failed ODD dimension, the remaining `T_odd` budget, and the accepted domain once there is one) | 2–5 Hz |
+| **Fallback availability** | `/si/out/fallback_availability` | *new* `FallbackAvailability` (`pull_over_available`, reason, distance to next refuge , and `refuge_source` — `HPC_NOMINATED` or `ISLAND_DETECTED` — so that the HPC and the operator can tell a lawful refuge from a clearance) | 2 Hz |
 | MRM state | `/system/fail_safe/mrm_state` | `autoware_adapi_v1_msgs/MrmState` | 10 Hz + on change |
 | Constraint / veto vector | `/si/out/constraints` | *new* `SafetyEnvelopeCommand` (accel limit, curvature limit, speed limit, mode: ALLOW / CONSTRAIN / MRM) | 50 Hz |
 | Executed control command (echo) | `/control/command/control_cmd` | `autoware_control_msgs/Control` | 50 Hz |
@@ -2484,7 +2497,7 @@ in EN 50159 and ISO 26262-6, and it is unchanged by the choice of implementation
 | Addressing error, wrong interface | Data ID |
 | Truncation, malformed payload | Length field |
 
-**Two profiles are enough for the HPC link and the vehicle bus** <mark>— the RCC link, an open network, adds a third, SI-E2E/R ([§8.6](#86-the-rcc-link-and-the-local-control-port))</mark>:
+**Two profiles are enough for the HPC link and the vehicle bus** <mark>— the RCC link, an open network, will need a third; it is deferred with the RCC communication ([§8.6](#86-the-rcc-link-and-the-local-control-port))</mark>:
 
 | | **SI-E2E/A** — Ethernet, variable length | **SI-E2E/B** — compact status and CAN FD |
 | :-- | :-- | :-- |
@@ -2518,6 +2531,11 @@ the HPC is an Orin/Thor-class part, this is the sub-millisecond detection path; 
 which ends at [`N21`](#65-remote-command-and-control-link-and-local-control-port), and the local control port, which ends at [`N23`](#65-remote-command-and-control-link-and-local-control-port). Both carry commands into the gate,
 so both carry the same end-to-end protection as §8.4. The RCC link needs more than that.</mark>
 
+<mark>**The RCC communication is deferred to the next design.** The two RCC tables below are what [B5](#b5--tele-operation-from-the-remote-command-centre) requires of
+it — the signals, their rates and their age limits — and the profile after them is the proposal that design starts from.
+The transport, the session, the keys and the video channel are that design's to choose. The local port is designed here,
+**wired only**.</mark>
+
 <mark>**RCC → island (into [`N21`](#65-remote-command-and-control-link-and-local-control-port)).**</mark>
 
 | <mark>Signal</mark> | <mark>Topic</mark> | <mark>Type</mark> | <mark>Rate</mark> | <mark>Age limit</mark> | <mark>Protection</mark> |
@@ -2535,15 +2553,15 @@ so both carry the same end-to-end protection as §8.4. The RCC link needs more t
 | <mark>Link state</mark> | <mark>`/si/rcc/link_state`</mark> | <mark>*new* `RccLinkState` (round-trip time, command age, stream age, `v_teleop` and why it was cut)</mark> | <mark>10 Hz</mark> | <mark>SI-E2E/R</mark> |
 | <mark>Island status, take-over and assistance requests</mark> | <mark>`/si/rcc/status`</mark> | <mark>*new* `IslandStatusSummary` (island mode, fault summary, MRM outcome, refuge source, GNSS position, **remote take-over request** in **[B1](#b1--degrade-the-ads-when-the-odd-cannot-be-held)**–**[B3](#b3--pull-over-if-the-odd-continues-to-fail)**, with its reason, the current behaviour and its remaining budget, and an assistance request after **[B3](#b3--pull-over-if-the-odd-continues-to-fail)** or **[B4](#b4--emergency-stop-when-the-island-is-blind)**)</mark> | <mark>1 Hz + on change</mark> | <mark>SI-E2E/R</mark> |
 
-<mark>**Local port ↔ [`N23`](#65-remote-command-and-control-link-and-local-control-port)** (CAN FD, by cable or through the radio receiver).</mark>
+<mark>**Local port ↔ [`N23`](#65-remote-command-and-control-link-and-local-control-port)** (CAN FD, by cable).</mark>
 
 | <mark>Signal</mark> | <mark>Direction</mark> | <mark>Content</mark> | <mark>Rate</mark> | <mark>Age limit</mark> | <mark>Protection</mark> |
 | :-- | :-- | :-- | :-- | :-- | :-- |
 | <mark>Local drive command</mark> | <mark>device → island</mark> | <mark>steering setpoint, speed setpoint, F / N / R, enabling-switch position, emergency-stop state, horn / hazards</mark> | <mark>50 Hz</mark> | <mark>`T_local` = 200 ms</mark> | <mark>SI-E2E/B</mark> |
-| <mark>Device status</mark> | <mark>device → island</mark> | <mark>paired device ID, battery, radio signal strength</mark> | <mark>5 Hz</mark> | <mark>1 s</mark> | <mark>SI-E2E/B</mark> |
+| <mark>Device status</mark> | <mark>device → island</mark> | <mark>pendant ID, connection state, enabling-switch self-test</mark> | <mark>5 Hz</mark> | <mark>1 s</mark> | <mark>SI-E2E/B</mark> |
 | <mark>Island feedback</mark> | <mark>island → device</mark> | <mark>mode granted, speed, fault, `v_local`</mark> | <mark>5 Hz</mark> | <mark>—</mark> | <mark>SI-E2E/B</mark> |
 
-<mark>**Why the RCC link needs a third profile.** The HPC link and the local port run on closed networks. A
+<mark>**Why the RCC link will need a third profile — a proposal for the next design.** The HPC link and the local port run on closed networks. A
 cellular link is an **open** network in the sense of EN 50159: anyone who can reach it can try to
 inject a message, and a CRC is not a defence against an attacker who can compute one. So the RCC link
 carries **SI-E2E/R**, which splits the job in two:</mark>
@@ -2554,7 +2572,7 @@ carries **SI-E2E/R**, which splits the job in two:</mark>
 | <mark>Age</mark> | <mark>The **frame-stamp echo**. It is measured on the island's own clock, so no shared time base is needed</mark> |
 | <mark>Session</mark> | <mark>Session ID 32-bit, bound to one authenticated operator and one vehicle</mark> |
 | <mark>Security part — masquerade and tampering</mark> | <mark>A message authentication code from the secure channel: TLS 1.3 or DTLS 1.3, mutually authenticated. The keys are held in the island processor's hardware security module</mark> |
-| <mark>Overhead</mark> | <mark>≈ 27 bytes, plus the channel's</mark> |
+| Overhead | <mark>≈ 27 bytes, plus the channel's</mark> |
 
 <mark>A message that fails the security part is a **security** event; one that fails the safety part is a
 **safety** event. [`N21`](#65-remote-command-and-control-link-and-local-control-port) raises both to [`N8`](#61-supervision-state-and-fallback), and repeated failures of either kind count as a link loss.
@@ -2596,7 +2614,7 @@ P2's output only through an age-checked snapshot, and never blocks on it.
 **Sizing note.** P2 is the new load introduced by [D7](#1-inputs-already-fixed-by-the-wg), and it is the partition most likely to force a
 larger MCU than the current S32Z-class target. <mark>Camera processing — lane, road-edge and lateral
 free-space extraction — is now the dominant and unavoidable part of it, since the camera is the one
-mandatory sensor; 2D-lidar occupancy adds to it only where a lidar is fitted. Both are</mark> bounded, but not free. If open decision 8 resolves toward a certified smart camera that emits lane and
+mandatory sensor; 2D-lidar occupancy adds to it only where a lidar is fitted.</mark> Both are bounded, but not free. If open decision 8 resolves toward a certified smart camera that emits lane and
 object lists directly, [N14](#62-island-safety-sensing) collapses to a bus parser and P2's worst case drops sharply — an argument
 for that option beyond the certification one.
 
@@ -2680,14 +2698,14 @@ HPC dies?**
 
 The set is a ladder, not a single answer, because it depends on the declared ODD. It has a floor —
 rung 0 — which is not a deployable configuration but the state the island degrades *into* when its
-<mark>sensors are lost. Listing it makes the point that [B4](#b4--emergency-stop-when-the-island-is-blind) exists precisely so that the ladder cannot
-run out from under the design.</mark>
+sensors are lost. Listing it makes the point that [B4](#b4--emergency-stop-when-the-island-is-blind) exists precisely so that the ladder cannot
+run out from under the design.
 
 | Rung | Sensors | Sufficient for |
 | :-- | :-- | :-- |
-| <mark>**0 — the floor**</mark> | <mark>chassis signals only — wheel speed, steering report, ESC yaw rate and acceleration; **no exteroceptive sensor**, or none the design may rely on: an island whose camera is lost is here, whatever else it still carries</mark> | <mark>[B4](#b4--emergency-stop-when-the-island-is-blind) and nothing else: a blind emergency stop in the running lane. Not a configuration anyone deploys — it is what rungs A–E degrade to, and the reason [B4](#b4--emergency-stop-when-the-island-is-blind) carries no precondition</mark> |
-| <mark>**A — irreducible**</mark> | <mark>**forward camera** · chassis signals</mark> | <mark>[B2](#b2--keep-the-vehicle-in-its-lane-after-loss-of-the-hpc) at the city-road `v_odd` (~30 km/h); [B3](#b3--pull-over-if-the-odd-continues-to-fail) at or below ~30 km/h, the camera finding both the lane lines and the pull-over space, with a long indicator dwell and a very low lateral rate standing in for rear-corner radar; fair weather. **This is what the NTU golf-cart prototype can start with.**</mark> |
-| <mark>**B — design point**</mark> | <mark>+ forward radar · rear-corner radar on the pull-over side</mark> | <mark>A credible L4 ODD: the highway `v_odd` (~60 km/h) for [B2](#b2--keep-the-vehicle-in-its-lane-after-loss-of-the-hpc), [B3](#b3--pull-over-if-the-odd-continues-to-fail) above ~30 km/h, weather robustness, closing speed on traffic ahead, awareness of the lateral space the manoeuvre crosses — and the radar-versus-camera visibility test that makes [B1](#b1--degrade-the-ads-when-the-odd-cannot-be-held) possible</mark> |
+| **0 — the floor** | <mark>chassis signals only — wheel speed, steering report, ESC yaw rate and acceleration; **no exteroceptive sensor**, or none the design may rely on: an island whose camera is lost is here, whatever else it still carries</mark> | [B4](#b4--emergency-stop-when-the-island-is-blind) and nothing else: a blind emergency stop in the running lane. <mark>Not a configuration anyone deploys — it is what rungs A–E degrade to, and the reason [B4](#b4--emergency-stop-when-the-island-is-blind) carries no precondition</mark> |
+| **A — irreducible** | <mark>**forward camera** · chassis signals</mark> | <mark>[B2](#b2--keep-the-vehicle-in-its-lane-after-loss-of-the-hpc) at the city-road `v_odd` (~30 km/h);</mark> <mark>[B3](#b3--pull-over-if-the-odd-continues-to-fail) at or below ~30 km/h, the camera finding both the lane lines and the pull-over space, with a long indicator dwell and a very low lateral rate standing in for rear-corner radar; fair weather.</mark> **This is what the NTU golf-cart prototype can start with.** |
+| **B — design point** | + forward radar · rear-corner radar on the pull-over side | <mark>A credible L4 ODD: the highway `v_odd` (~60 km/h) for [B2](#b2--keep-the-vehicle-in-its-lane-after-loss-of-the-hpc), [B3](#b3--pull-over-if-the-odd-continues-to-fail) above ~30 km/h, weather robustness, closing speed on traffic ahead, awareness of the lateral space the manoeuvre crosses — and the radar-versus-camera visibility test that makes [B1](#b1--degrade-the-ads-when-the-odd-cannot-be-held) possible</mark> |
 | <mark>**C — near-field**</mark> | <mark>+ ultrasonic array</mark> | <mark>Near-field clearance for the final metres of [B3](#b3--pull-over-if-the-odd-continues-to-fail): the stop may end tight to the kerb rather than within the shoulder; standstill and creep release; [`I20`](#41-migration-list) collision_detector runs ([`N15`](#62-island-safety-sensing) → `PointCloud2`)</mark> |
 | <mark>**D — full**</mark> | <mark>+ island IMU / GNSS</mark> | <mark>A dynamics channel independent of the chassis bus; the friction dimension of §6.4; GNSS corroboration of the ODD class `v_odd` is set from</mark> |
 | <mark>**E — enriched**</mark> | <mark>+ 2D lidar — *optional*</mark> | <mark>A second free-space channel and physical-edge confirmation for the camera's refuge; radar-versus-lidar visibility as a second instance. **Adds confidence, never capability**: nothing in [B1](#b1--degrade-the-ads-when-the-odd-cannot-be-held)–[B6](#b6--manual-joystick-control-without-streamed-sensing) requires it</mark> |
@@ -2696,13 +2714,13 @@ Reasoning behind each, <mark>in the order [D8](#1-inputs-already-fixed-by-the-wg
 
 | Sensor | Verdict | Why |
 | :-- | :-- | :-- |
-| <mark>**Forward camera**</mark> | <mark>**Mandatory, and the one that cannot be dropped**</mark> | <mark>Every behaviour above [B4](#b4--emergency-stop-when-the-island-is-blind) is a question about the *lane*: [B2](#b2--keep-the-vehicle-in-its-lane-after-loss-of-the-hpc) must hold it, [B3](#b3--pull-over-if-the-odd-continues-to-fail) must find the space beside it and cross its outer line, and §6.4 must judge whether it can still be seen. The camera is the only island sensor that sees lane lines at all, and with classical road-edge and free-space extraction it also sees the pull-over space. Its loss is, by definition, [B4](#b4--emergency-stop-when-the-island-is-blind).</mark> |
-| <mark>**Chassis signals**</mark> | <mark>**Always present — not an island sensor**</mark> | <mark>Without [`N4`](#61-supervision-state-and-fallback) there is no ego state after HPC loss and nothing to track a path against. Wheel speed, steering report and the ESC yaw rate and acceleration are on every vehicle's bus; they are what rung 0 stands on.</mark> |
+| **Forward camera** | **Mandatory, and the one that cannot be dropped** | <mark>Every behaviour above [B4](#b4--emergency-stop-when-the-island-is-blind) is a question about the *lane*: [B2](#b2--keep-the-vehicle-in-its-lane-after-loss-of-the-hpc) must hold it, [B3](#b3--pull-over-if-the-odd-continues-to-fail) must find the space beside it and cross its outer line, and §6.4 must judge whether it can still be seen. The camera is the only island sensor that sees lane lines at all, and with classical road-edge and free-space extraction it also sees the pull-over space. Its loss is, by definition, [B4](#b4--emergency-stop-when-the-island-is-blind).</mark> |
+| <mark>**Chassis signals**</mark> | <mark>**Always present — not an island sensor**</mark> | Without [`N4`](#61-supervision-state-and-fallback) there is no ego state after HPC loss and nothing to track a path against. <mark>Wheel speed, steering report and the ESC yaw rate and acceleration are on every vehicle's bus; they are what rung 0 stands on.</mark> |
 | **Rear-corner radar, pull-over side** | **Mandatory above ~30 km/h** | The manoeuvre crosses lateral traffic space <mark>a forward camera cannot see</mark>. Cheap, weather-robust, CAN FD — the same part production blind-spot systems use. Below ~30 km/h it can be traded for a long indicator dwell and a very low lateral rate. |
 | **Forward radar** | <mark>**Ranked second; mandatory for the highway class and once weather is in the ODD**</mark> | The only forward channel that survives fog, heavy rain and darkness — exactly the conditions in which the MRM is most likely to be needed. <mark>It supplies the range that lifts `v_max` to the highway `v_odd`, the point cloud [`I19`](#41-migration-list) runs on when no lidar is fitted, and</mark> half of the §6.4 visibility test. |
 | **Ultrasonic array** | <mark>**Ranked third**</mark> | Required if the manoeuvre must terminate tight to a kerb, or if standstill-release safety is claimed. Droppable if "stop within the shoulder" is the accepted terminal condition <mark>— which is what rungs A and B accept. Cheap, short-range and blind beyond ~5 m, it buys a terminal condition, not speed: it is the only island sensor that sees the kerb, a bollard or a pedestrian in the last metre beside the vehicle, where the camera's view and radar's resolution both run out.</mark> |
 | <mark>**Island IMU / GNSS**</mark> | <mark>**Ranked fourth — recommended**</mark> | <mark>Gives [`N4`](#61-supervision-state-and-fallback) a channel that does not share the chassis bus, and gives §6.4 a friction estimate it can claim margin on. GNSS corroborates the road class behind `v_odd`, downward only. Droppable: below rung D the chassis ESC signals stand in, with less independence and less margin.</mark> |
-| <mark>**2D lidar**</mark> | <mark>**Optional**</mark> | <mark>Measures free space and the physical edge directly, and would confirm the camera's refuge well. But a behaviour written against an optional sensor is not deployable on the islands that lack it, so the lidar may only *confirm or disqualify* — never qualify a refuge or supply a corridor.</mark> |
+| **2D lidar** | <mark>**Optional**</mark> | <mark>Measures free space and the physical edge directly, and would confirm the camera's refuge well. But a behaviour written against an optional sensor is not deployable on the islands that lack it, so the lidar may only *confirm or disqualify* — never qualify a refuge or supply a corridor.</mark> |
 
 > <mark>**The ranking settles the sensor set, and it inverts the previous one.** Earlier revisions made the
 > 2D lidar irreducible and the camera conditional. [D8](#1-inputs-already-fixed-by-the-wg) reverses that, and the behaviours follow: the
@@ -2721,14 +2739,14 @@ Reasoning behind each, <mark>in the order [D8](#1-inputs-already-fixed-by-the-wg
 | **Sensing** | <mark>[`N14`](#62-island-safety-sensing) vision_guard</mark> · [`N6`](#61-supervision-state-and-fallback) radar_guard · [`N16`](#62-island-safety-sensing) safety_world_model · [`N17`](#62-island-safety-sensing) sensor_health · [`I19`](#41-migration-list) autonomous_emergency_braking | 5 |
 | **Execution assurance** | [`N9`](#61-supervision-state-and-fallback) actuator_supervisor | 1 |
 
-<mark>Of those 21, the subset that [B4](#b4--emergency-stop-when-the-island-is-blind) alone requires is small and worth naming, because it is the part
+Of those 21, the subset that [B4](#b4--emergency-stop-when-the-island-is-blind) alone requires is small and worth naming, because it is the part
 of the island that must keep working when everything else has stopped being trustworthy:
 [`N4`](#61-supervision-state-and-fallback) ego state · [`N3`](#61-supervision-state-and-fallback) state machine ·
 [`N8`](#61-supervision-state-and-fallback) fault manager · [`N17`](#62-island-safety-sensing) sensor health (to *declare* the blackout) ·
 [`I7`](#41-migration-list) mrm_handler · [`I6`](#41-migration-list) emergency-stop operator ·
 [`I1`](#41-migration-list) gate · [`I16`](#41-migration-list) vehicle interface · [`I5`](#41-migration-list) to secure at standstill —
 **nine nodes, none of which consume an exteroceptive topic.** That is the property to hold on to: the
-[B4](#b4--emergency-stop-when-the-island-is-blind) path shares no input with the sensing chain whose failure triggers it.</mark>
+[B4](#b4--emergency-stop-when-the-island-is-blind) path shares no input with the sensing chain whose failure triggers it.
 
 **Recommended additions (+3): [`I9`](#41-migration-list) + [`I12`](#41-migration-list) + [`I11`](#41-migration-list).** The MRM needs a longitudinal law. Reusing
 Autoware's PID longitudinal controller — which means keeping the follower node and its plugin base —
@@ -2756,7 +2774,7 @@ A minimal set is only useful if the omissions are argued rather than overlooked.
 | [`I14`](#41-migration-list) shift_decider | [`I5`](#41-migration-list)'s `enable_auto_parking` covers the gear-P transition. | none |
 | [`I15`](#41-migration-list) raw_vehicle_cmd_converter | Only needed for vehicles with pedal/torque interfaces. **Not needed on the NTU golf cart**, whose interface is steering angle + velocity. | Vehicle-specific; re-add per platform. |
 | <mark>[`N13`](#62-island-safety-sensing) scan_guard,</mark> [`I20`](#41-migration-list) collision_detector, [`N15`](#62-island-safety-sensing) proximity_guard | <mark>Rungs A and B have no ultrasonic ([D8](#1-inputs-already-fixed-by-the-wg) ranks it third, below the design point) and no 2D lidar (optional). [`I19`](#41-migration-list) runs on [`N6`](#61-supervision-state-and-fallback)'s radar point cloud instead.</mark> | No near-field guard for the final metres and standstill release <mark>, and no second free-space channel behind the camera's refuge</mark>. Pair with the "stop within the shoulder" terminal condition. |
-| <mark>— *(no exclusion)*</mark> | <mark>[B4](#b4--emergency-stop-when-the-island-is-blind) is unaffected by every row above: it consumes no exteroceptive topic.</mark> | <mark>none — which is the point of declaring it. Each omission narrows what the island can *do*, never what it can *stop doing*.</mark> |
+| — *(no exclusion)* | [B4](#b4--emergency-stop-when-the-island-is-blind) is unaffected by every row above: it consumes no exteroceptive topic. | none — which is the point of declaring it. Each omission narrows what the island can *do*, never what it can *stop doing*. |
 | [`N20`](#62-island-safety-sensing) object_digest | Optional by construction ([§3.5](#35-optional-enrichment-the-hpc-object-list)). It enriches [B1](#b1--degrade-the-ads-when-the-odd-cannot-be-held)–[B4](#b4--emergency-stop-when-the-island-is-blind) and gates none of them. | The island loses the HPC self-consistency veto and the conservative object term. **No capability is lost** — which is the test the option was designed to pass. |
 | [`N19`](#64-odd-degradation-on-weather-and-visibility) odd_monitor | Not required to execute an MRM. | The §6.4 feature is simply absent. |
 
@@ -2836,9 +2854,9 @@ reduced-visibility domain. The Least-Cost island ODD excludes fog and heavy rain
 | :-- | :-- | :-- |
 | <mark>[`N6`](#61-supervision-state-and-fallback) radar_guard</mark> | <mark>**absent**</mark> | <mark>present, four radars (front pair, rear pair)</mark> |
 | <mark>[`N13`](#62-island-safety-sensing) scan_guard</mark> | <mark>**present**: the AEB channel, and a confirming channel for the corridor and the refuge</mark> | <mark>absent</mark> |
-| <mark>[`N14`](#62-island-safety-sensing) vision_guard</mark> | <mark>Ethernet camera, low resolution</mark> | <mark>GMSL / CSI-2 camera, higher resolution</mark> |
+| [`N14`](#62-island-safety-sensing) vision_guard | <mark>Ethernet camera, low resolution</mark> | <mark>GMSL / CSI-2 camera, higher resolution</mark> |
 | <mark>[`N15`](#62-island-safety-sensing) proximity_guard, [`I20`](#41-migration-list)</mark> | <mark>present</mark> | <mark>present</mark> |
-| <mark>[`N19`](#64-odd-degradation-on-weather-and-visibility) odd_monitor</mark> | <mark>camera contrast + lidar-versus-camera; fair weather only</mark> | <mark>camera contrast + two radar-versus-camera instances</mark> |
+| [`N19`](#64-odd-degradation-on-weather-and-visibility) odd_monitor | <mark>camera contrast + lidar-versus-camera; fair weather only</mark> | <mark>camera contrast + two radar-versus-camera instances</mark> |
 | <mark>[`I19`](#41-migration-list) AEB input</mark> | <mark>[`N13`](#62-island-safety-sensing) lidar</mark> | <mark>[`N6`](#61-supervision-state-and-fallback) radar</mark> |
 | <mark>[`N22`](#65-remote-command-and-control-link-and-local-control-port) teleop_streamer</mark> | <mark>forwards the camera's own encoded stream</mark> | <mark>encodes on the application cluster</mark> |
 | <mark>**The §9.4 minimum of 21**</mark> | <mark>21, with [`N13`](#62-island-safety-sensing) in place of [`N6`](#61-supervision-state-and-fallback)</mark> | <mark>21 as listed</mark> |
@@ -2976,7 +2994,7 @@ graph TB
     ACT["Actuator gateway<br/>brake · steer · propulsion · lamps"]
     FSI["On-SoC FSI<br/>Cortex-R52 lockstep"]
     RCC["Remote command and control centre<br/>remote driver — B5"]
-    JOY["Local joystick — B6<br/>wired or short-range radio"]
+    JOY["Local joystick — B6<br/>wired pendant"]
 
     HSENS ==>|"SerDes / PCIe / Auto-Enet — high fidelity"| HPC
     ISENS ==>|"CAN FD · LIN · 100BASE-T1 · GMSL<br/>independent harness and power rail"| SENS
@@ -3238,11 +3256,11 @@ sequenceDiagram
     end
 ```
 
-<mark>Exit C is drawn last but is not last in precedence: it can preempt Exits A and B at any moment,
+Exit C is drawn last but is not last in precedence: it can preempt Exits A and B at any moment,
 including mid-hand-back. Note what is *absent* from it — no [`N16`](#62-island-safety-sensing) query, no corridor
 lookup, no [`N18`](#63-pull-over-mrm-after-hpc-loss) refuge check. [B4](#b4--emergency-stop-when-the-island-is-blind) is the only path in this diagram that
 completes without consulting a sensing node, which is what allows it to run when the sensing nodes
-are the thing that failed.</mark>
+are the thing that failed.
 
 The critical span is detection to authority transfer: three missed heartbeats at 100 Hz, then two
 decision cycles. **Nothing in the shaded transfer band reads a topic the HPC produces** <mark>— the ODD class is latched from the last `active_odd` the island had already verified and buffered, not requested from an HPC that is gone, and a missing one selects the most restrictive class</mark> — and the
@@ -3254,7 +3272,7 @@ manoeuvre: it commits it to [**B2**](#b2--keep-the-vehicle-in-its-lane-after-los
 a re-qualified HPC and Exit B <mark>forks — to [B3](#b3--pull-over-if-the-odd-continues-to-fail) when the camera still sees the lane, to Exit C ([B4](#b4--emergency-stop-when-the-island-is-blind)) when it does not; there is no third way out of the hold</mark>. <mark>Within the window, the first seconds go to bringing the vehicle down to `v_odd` (§3.1); the rest is the HPC's chance to return.</mark> Note what Exit A does *not* do — it does not accept the
 first heartbeat that reappears, and it does not return to `ALLOW`. Note also that the corridor check
 sits at [B2](#b2--keep-the-vehicle-in-its-lane-after-loss-of-the-hpc)'s entry, not inside it: an island that cannot see the lane never enters the hold at all —
-<mark>it goes to Exit C, which is [B4](#b4--emergency-stop-when-the-island-is-blind), directly.</mark>
+it goes to Exit C, which is [B4](#b4--emergency-stop-when-the-island-is-blind), directly.
 
 ### 10.4 Command-source arbitration inside the island
 
@@ -3342,19 +3360,19 @@ flowchart TB
 ```
 
 Every branch out of the happy path lands on a *simpler* manoeuvre. Pull-over degrades to in-lane stop,
-<mark>in-lane stop degrades to [B4](#b4--emergency-stop-when-the-island-is-blind) emergency stop</mark>, emergency stop degrades to the gate's built-in stop.
+in-lane stop degrades to [B4](#b4--emergency-stop-when-the-island-is-blind) emergency stop, emergency stop degrades to the gate's built-in stop.
 The manoeuvre never escalates in complexity under fault — which is what makes attempting the harder
-<mark>one acceptable. Note the two edges into [B4](#b4--emergency-stop-when-the-island-is-blind) that do not pass through the pull-over logic at all: a
+one acceptable. Note the two edges into [B4](#b4--emergency-stop-when-the-island-is-blind) that do not pass through the pull-over logic at all: a
 sensing blackout removes the *precondition* of every box above it at once, so it short-circuits the
-ladder rather than descending it.</mark>
+ladder rather than descending it.
 
-<mark>The `SEARCH` box is where the island produces a stopping place of its own rather than verifying one,
+The `SEARCH` box is where the island produces a stopping place of its own rather than verifying one,
 and its three outcomes are not interchangeable. **Found** rejoins the ordinary path at `VERIFY` — an
 island-detected clearance is verified free exactly as a nominated refuge is, because provenance changes
 what may be *claimed* about a refuge, never what must be *checked*. **Positively none** descends one
 rung to the in-lane stop, which still has a corridor. **Inconclusive** is the only one that reaches
 [B4](#b4--emergency-stop-when-the-island-is-blind), and it does so for the same reason the blackout edge
-does: a search that cannot conclude is a statement about the island's own capability.</mark>
+does: a search that cannot conclude is a statement about the island's own capability.
 
 ### 10.6 ODD degradation ladder
 
@@ -3417,16 +3435,16 @@ stateDiagram-v2
 ```
 
 Time runs in seconds here, not milliseconds. The escalation is **deliberately reluctant**: the island
-gives the HPC <mark>four</mark> chances to handle its own ODD exit, because a planned pull-over with map knowledge
+gives the HPC four chances to handle its own ODD exit, because a planned pull-over with map knowledge
 beats the island's geometric one every time. Only non-compliance — which the island detects from
 vehicle status alone, needing no HPC cooperation — moves authority.
 
-<mark>`SwitchDemanded` is the rung that carries the drive forward rather than down. Every other edge in this
+`SwitchDemanded` is the rung that carries the drive forward rather than down. Every other edge in this
 diagram either holds the vehicle where it is or moves it closer to a stop; the edge from
 `SwitchDemanded` back to `Nominal` is the one that returns the vehicle to normal L4 operation — in a
 narrower domain than it left. Note that it returns to `Nominal` and not to `Marginal`: once a domain has
 been declared, verified and held, the vehicle is no longer operating outside its envelope. The envelope
-changed.</mark>
+changed.
 
 
 ---
@@ -3506,11 +3524,11 @@ These change the allocation and should be settled before Part 2.
    HPC time to return (§3.1). What remains open is the value per road class within that range, and the
    fallback deceleration (≤ 2 m/s² proposed) used to reach `v_odd`.</mark>
    *(b)* `v_hold` — the constrained speed held during [B2](#b2--keep-the-vehicle-in-its-lane-after-loss-of-the-hpc), from the §6.4 speed law evaluated against the
-   *island's* ODD, not the vehicle's, <mark>and capped by `v_odd` (decision 13)</mark> <mark>Now a **ramp** rather than a constant (§3.1): the open numbers are
+   *island's* ODD, not the vehicle's, <mark>and capped by `v_odd` (decision 13)</mark> Now a **ramp** rather than a constant (§3.1): the open numbers are
    the `v_exit(t)` decay shape — linear in time, linear in remaining `T_hold`, or a constant-deceleration
    profile — and `v_entry`, the speed the ramp must land on at `T_hold`. A ramp that is too aggressive
    throws away the hold's whole purpose by stopping the vehicle before the HPC has had its window; one
-   that is too gentle leaves [B3](#b3--pull-over-if-the-odd-continues-to-fail) to begin with a deceleration it should have inherited.</mark>
+   that is too gentle leaves [B3](#b3--pull-over-if-the-odd-continues-to-fail) to begin with a deceleration it should have inherited.
    *(c)* The **recovery confirmation window** — how long a returned HPC must publish valid, in-envelope
    trajectories before [`N2`](#61-supervision-state-and-fallback) will qualify it. It must be long enough that a crashed-and-restarted HPC
    cannot re-acquire authority on its first plausible message.
@@ -3519,11 +3537,11 @@ These change the allocation and should be settled before Part 2.
    treating every transient loss as terminal — makes the vehicle brittle in exactly the scenarios the
    island exists to survive. The conservative alternative (hold, then always pull over) is defensible
    and cheaper to argue for in the safety case. This is a WG decision, not a design one.
-15. <mark>**[B4](#b4--emergency-stop-when-the-island-is-blind)'s blackout declaration and stop rate (§3.1, §6.2).** [B4](#b4--emergency-stop-when-the-island-is-blind) is new in version
+15. **[B4](#b4--emergency-stop-when-the-island-is-blind)'s blackout declaration and stop rate (§3.1, §6.2).** [B4](#b4--emergency-stop-when-the-island-is-blind) is new in version
    20260903 and its parameters are unset. Three numbers and one policy question.
-   *(a)* The **blackout debounce** — how long </mark>the camera must be invalid, or the lane lines lost,<mark>
+   *(a)* The **blackout debounce** — how long the camera must be invalid, or the lane lines lost,<mark>
    before [`N17`](#62-island-safety-sensing) declares it. </mark>Since [D8](#1-inputs-already-fixed-by-the-wg) this is a single-sensor debounce, and it is also
-   the bridging budget over which [`H3`](#7-new-nodes-to-add-on-the-hpc)'s corridor may carry a camera dropout.<mark> Too short and a tunnel mouth, a spray burst
+   the bridging budget over which [`H3`](#7-new-nodes-to-add-on-the-hpc)'s corridor may carry a camera dropout. Too short and a tunnel mouth, a spray burst
    from an overtaking truck, or a low-sun frame triggers an emergency stop on a live carriageway; too
    long and the vehicle travels blind. The starting proposal is **3 consecutive [`N16`](#62-island-safety-sensing) cycles**
    (≈ 60–150 ms), bounded additionally by a hard **distance-travelled-blind** cap, because at speed the
@@ -3537,7 +3555,7 @@ These change the allocation and should be settled before Part 2.
    *(d)* The policy question: **must [B4](#b4--emergency-stop-when-the-island-is-blind) also alert?** Hazard lamps are in the design already.
    Whether a blind stop additionally raises a remote-assistance request, a V2X hazard message, or the
    horn is an operational-concept decision the WG owns, and it interacts with whether the deployment
-   assumes a remote operator at all.</mark>
+   assumes a remote operator at all.
 16. **The optional HPC object list ([§3.5](#35-optional-enrichment-the-hpc-object-list), §6.2, §8.1).** New in version 20260903, and the first
    question is whether to take it at all.
    *(a)* **Adopt, or not.** For: the self-consistency veto is the cheapest guardian function in the
@@ -3558,7 +3576,7 @@ These change the allocation and should be settled before Part 2.
    *nuisance* braking, never a missed hazard. If the WG judges nuisance braking at speed to be a hazard
    in its own right, the row moves to SI-E2E/A. This is the sharpest of the four questions, and it is
    the one that tests whether the monotone-conservatism argument is believed.
-17. <mark>**The ODD switch exchange ([B1](#b1--degrade-the-ads-when-the-odd-cannot-be-held), §6.4).** [B1](#b1--degrade-the-ads-when-the-odd-cannot-be-held) is now a negotiation rather than a
+17. **The ODD switch exchange ([B1](#b1--degrade-the-ads-when-the-odd-cannot-be-held), §6.4).** [B1](#b1--degrade-the-ads-when-the-odd-cannot-be-held) is now a negotiation rather than a
    constraint, and four things about it are unset.
    *(a)* `T_ack` and `T_odd` — **2 s** to declare a new active domain, **10 s** to be measurably in it,
    are starting proposals only. `T_odd` is additionally bounded from above by `t_margin − t_pullover`
@@ -3575,15 +3593,15 @@ These change the allocation and should be settled before Part 2.
    *(d)* The policy question: **may the vehicle switch domains more than once in a drive cycle?** The
    design does not forbid it, and repeated narrowing is the natural behaviour in worsening weather. The
    conservative alternative — one switch, then [B3](#b3--pull-over-if-the-odd-continues-to-fail) — is easier to argue and materially less
-   useful.</mark>
-18. <mark>**The island-detected refuge and `T_refuge` ([B3](#b3--pull-over-if-the-odd-continues-to-fail), §6.3).** The island now carries a second
+   useful.
+18. **The island-detected refuge and `T_refuge` ([B3](#b3--pull-over-if-the-odd-continues-to-fail), §6.3).** The island now carries a second
    refuge source, which is the first time it produces a stopping *place* rather than verifying one.
    *(a)* `T_refuge` — **5 s** is proposed, with a distance-travelled-searching cap alongside it for the
    reason decision 15 gives. It is bounded below by how long the sensors need to establish a clearance
    with confidence, and above by the speed the vehicle is still carrying while it searches.
    *(b)* **The clearance criteria** — minimum width, minimum length, maximum lateral displacement,
-   and what surface evidence (if any) is required </mark>— all of them now measured by the camera, so each
-   needs a stated camera accuracy at the range the search runs at<mark>. The island cannot classify a surface, so
+   and what surface evidence (if any) is required — all of them now measured by the camera, so each
+   needs a stated camera accuracy at the range the search runs at. The island cannot classify a surface, so
    `surface_class = UNKNOWN` is proposed, which means the criteria must be geometric alone.
    *(c)* **Is an `EMERGENCY_ONLY` clearance acceptable at all?** This is the real question. The island
    cannot tell a hard shoulder from a cycle lane, a bus stop or a driveway, so admitting the source
@@ -3596,7 +3614,7 @@ These change the allocation and should be settled before Part 2.
    out of `T_refuge` *without a determination*, which goes to [B4](#b4--emergency-stop-when-the-island-is-blind). The distinction is load-bearing
    (§3.1) and it must be implementable: [`N18`](#63-pull-over-mrm-after-hpc-loss) has to be able to say which of the two it
    reached, and a WG that judges that undecidable in practice collapses both to [B4](#b4--emergency-stop-when-the-island-is-blind) and should say
-   so explicitly.</mark>
+   so explicitly.
 19. <mark>**[B5](#b5--tele-operation-from-the-remote-command-centre) remote driving and the RCC link ([D9](#1-inputs-already-fixed-by-the-wg), [§6.6](#66-detailed-design-of-b5-and-b6), [§8.6](#86-the-rcc-link-and-the-local-control-port)).** The stage-1 design is proposed;
    these items remain.
    *(a)* **Ratify the take-over from a moving vehicle.** [B5](#b5--tele-operation-from-the-remote-command-centre) may now be entered from [B1](#b1--degrade-the-ads-when-the-odd-cannot-be-held)–[B3](#b3--pull-over-if-the-odd-continues-to-fail) on the ADS's
@@ -3607,9 +3625,10 @@ These change the allocation and should be settled before Part 2.
    *(c)* **Re-engaging the ADS from `SAFE_STOP`.** Proposed: allowed, on the RCC's request, once the HPC
    has been re-qualified over [B2](#b2--keep-the-vehicle-in-its-lane-after-loss-of-the-hpc)'s confirmation window and the ODD is satisfiable. Otherwise every
    remote recovery ends the drive cycle, including one that followed a transient fault.
-   *(d)* **The module and its keys.** One modem with two SIMs for stage 1, or two modems on two carriers.
-   Who owns the certificate authority for operator and vehicle keys. Whether zenoh-pico's TLS transport
-   is adequate, or whether [N21](#65-remote-command-and-control-link-and-local-control-port) terminates TLS itself.
+   *(d)* **Deferred to the next design: the RCC communication.** The module and its redundancy (two SIMs, or
+   two modems on two carriers); who owns the certificate authority for operator and vehicle keys; the
+   protection profile (SI-E2E/R is the proposal); the video transport; and whether zenoh-pico's TLS
+   transport is adequate.
    *(e)* **Stage 2: a path-based remote-assistance mode**, in which the driver sends a short path and the
    island's fallback tier ([N7](#61-supervision-state-and-fallback) → [I13](#41-migration-list)) drives it. It tolerates latency far better than
    direct driving, and needs a remote-path input on [N7](#61-supervision-state-and-fallback).
@@ -3620,8 +3639,9 @@ These change the allocation and should be settled before Part 2.
    test-track mode that allows it belongs outside this design.
    *(b)* **Ratify the numbers:** `v_local` = 5 km/h forward and 3 km/h in reverse; 0.5 m/s²;
    `T_local` = 200 ms.
-   *(c)* **The device.** Certification of the radio controller to IEC 62745, with its stop functions at
-   PL d; the radio band, which differs by region; and where the wired CAN FD port sits on the vehicle.
+   *(c)* **The device — wired only in this design.** The grade of the pendant's enabling switch and emergency
+   stop, where the CAN FD connector sits, and the cable's length. **A short-range radio link is deferred
+   to the next design**, with IEC 62745 as its reference.
    *(d)* **The hardwired emergency stop** from the controller's receiver to the actuator gateway, so
    that the stop does not depend on island software. A Part-2 hardware item.</mark>
 21. <mark>**Least-Cost hardware ([D10](#1-inputs-already-fixed-by-the-wg), [§9.5](#95-two-design-branches-least-cost-and-maximum-safety)).**
@@ -3665,7 +3685,7 @@ These change the allocation and should be settled before Part 2.
 | :-- | :-- |
 | **2** | Timing and FTTI: worst-case chain latency per interface, fault-reaction budget derivation, RT contract files (`*.contract.yaml` + platform files) for both domains, checked against the nano-ros scheduling wiring matrix for the chosen target. |
 | **3** | Interaction specification: full message definitions for `autoware_safety_island_msgs`, per-signal E2E configuration, QoS table, and the complete island state machine with transition guards. |
-| **4** | Safety case skeleton: HARA extract, safety goals, ASIL allocation and decomposition argument, independence analysis, and the fault-injection test matrix (HPC hang, link flood, stale trajectory, E2E corruption, actuator non-response, power loss, <mark>**simultaneous blindness of every island sensor — the [B4](#b4--emergency-stop-when-the-island-is-blind) case**</mark> <mark>· loss of the RCC link mid-[B5](#b5--tele-operation-from-the-remote-command-centre) and of the local link mid-[B6](#b6--manual-joystick-control-without-streamed-sensing)</mark> — and, if [§3.5](#35-optional-enrichment-the-hpc-object-list) is adopted, a corrupted or phantom-object digest and a digest that goes silent mid-manoeuvre). |
+| **4** | Safety case skeleton: HARA extract, safety goals, ASIL allocation and decomposition argument, independence analysis, and the fault-injection test matrix (HPC hang, link flood, stale trajectory, E2E corruption, actuator non-response, power loss, **simultaneous blindness of every island sensor — the [B4](#b4--emergency-stop-when-the-island-is-blind) case** <mark>· loss of the RCC link mid-[B5](#b5--tele-operation-from-the-remote-command-centre) and of the local link mid-[B6](#b6--manual-joystick-control-without-streamed-sensing)</mark> — and, if [§3.5](#35-optional-enrichment-the-hpc-object-list) is adopted, a corrupted or phantom-object digest and a digest that goes silent mid-manoeuvre). |
 
 Implementation sequencing follows the existing port. The current `autoware-safety-island` on nano-ros
 already covers [I9](#41-migration-list)–[I12](#41-migration-list).
